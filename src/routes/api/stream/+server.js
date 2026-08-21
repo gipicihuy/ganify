@@ -144,7 +144,7 @@ function delay(ms) {
 // field names drift over time, so this is intentionally generic rather
 // than hardcoded per-provider — adjust the key list below if a given
 // provider's shape doesn't get picked up.
-const URL_KEY_HINTS = ['download', 'downloadurl', 'downloadurL', 'url', 'link', 'mp3', 'audio', 'dlink', 'dl'];
+const URL_KEY_HINTS = ['download', 'downloadurl', 'url', 'link', 'mp3', 'audio', 'dlink', 'dl'];
 function findUrlInResult(obj, depth = 0) {
   if (!obj || depth > 4) return null;
   if (typeof obj === 'string') {
@@ -152,9 +152,12 @@ function findUrlInResult(obj, depth = 0) {
   }
   if (typeof obj !== 'object') return null;
 
-  for (const key of URL_KEY_HINTS) {
-    const val = obj[key];
-    if (typeof val === 'string' && val.startsWith('http')) return val;
+  // Case-insensitive key match — real APIs use every casing imaginable
+  // (downloadURL, downloadUrl, DownloadUrl...), so compare lowercased.
+  for (const [key, val] of Object.entries(obj)) {
+    if (typeof val === 'string' && val.startsWith('http') && URL_KEY_HINTS.includes(key.toLowerCase())) {
+      return val;
+    }
   }
   for (const val of Object.values(obj)) {
     if (typeof val === 'object' && val) {
