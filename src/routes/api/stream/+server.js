@@ -29,10 +29,33 @@ async function fetchJsonWithTimeout(url, opts, ms) {
   const timer = setTimeout(() => controller.abort(), ms);
   try {
     const r = await fetch(url, { ...opts, signal: controller.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Single CDN attempt (used inside Promise.allSettled below).
+// Throws on any failure so allSettled can capture the reason for logging.
+async function trySingleCdn(cdn, videoId, headers, fullUrl) {
+  const infoJson = await fetchJsonWithTimeout(`https://${cdn}/v2/info`, {
+    method: 'POST', headers, body: JSON.stringify({ url: fullUrl })
+  }, ATTEMPT_TIMEOUT);
+
+  const encryptedData = infoJson?.data;
+  if (!encryptedData) throw new Error(`${cdn}: no data in /v2/info response`);
+
+  const decrypted = await decryptSavetube(encryptedData);
+
+  const dlJson = await fetchJsonWithTimeout(`https://${cdn}/download`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ id: videoId, downloadType: 'audio', quality: '128', key: decrypted.key })
+  }, ATTEMPT_TIMEOUT);
+
+  const downloadUrl = dlJson?.data?.downloadUrl || dlJson?.downloadUrl;
+  if (!downloadUrl) throw new Error(`${cdn}: no downloadUrl in /download response`);
+  return downloadUrl;
 }
 
 async function savetube(videoId) {
@@ -43,34 +66,25 @@ async function savetube(videoId) {
   };
   const fullUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // Same approach as the original /api/ytplay (and ArcelMusic, which calls
-  // that same endpoint): try a fixed pool of CDNs, up to 2 attempts each,
-  // and return as soon as one succeeds. No extra CDN-lookup round trip
-  // before this — that's pure added latency on every single play.
-  for (const cdn of CDNS) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const infoJson = await fetchJsonWithTimeout(`https://${cdn}/v2/info`, {
-          method: 'POST', headers, body: JSON.stringify({ url: fullUrl })
-        }, ATTEMPT_TIMEOUT);
+  // Race all CDNs in parallel instead of sequentially (old version could take
+  // up to CDNS.length * 2 * ATTEMPT_TIMEOUT ≈ 60s worst case before failing).
+  // Now total wait time is bounded by the slowest single attempt (~10s),
+  // and one dead CDN doesn't block trying the others.
+  const results = await Promise.allSettled(
+    CDNS.map(cdn => trySingleCdn(cdn, videoId, headers, fullUrl))
+  );
 
-        const encryptedData = infoJson?.data;
-        if (!encryptedData) continue;
+  const success = results.find((r) => r.status === 'fulfilled');
+  if (success) return success.value;
 
-        const decrypted = await decryptSavetube(encryptedData);
-
-        const dlJson = await fetchJsonWithTimeout(`https://${cdn}/download`, {
-          method: 'POST', headers,
-          body: JSON.stringify({ id: videoId, downloadType: 'audio', quality: '128', key: decrypted.key })
-        }, ATTEMPT_TIMEOUT);
-
-        const downloadUrl = dlJson?.data?.downloadUrl || dlJson?.downloadUrl;
-        if (downloadUrl) return downloadUrl;
-      } catch (e) {
-        // this attempt/CDN failed or timed out — fall through and try the next one
-      }
+  // All CDNs failed — log each reason so we can actually see why in
+  // Cloudflare's Logs tab (Observability), instead of a silent {"error":"failed"}.
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[stream] CDN ${CDNS[i]} failed:`, r.reason?.message || r.reason);
     }
-  }
+  });
+
   return null;
 }
 
@@ -80,9 +94,13 @@ export async function GET({ url }) {
 
   try {
     const downloadUrl = await savetube(id);
-    if (!downloadUrl) return new Response(JSON.stringify({ error: 'failed' }), { status: 500 });
+    if (!downloadUrl) {
+      console.error(`[stream] all CDNs failed for id=${id}`);
+      return new Response(JSON.stringify({ error: 'failed' }), { status: 500 });
+    }
     return new Response(JSON.stringify({ url: downloadUrl }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
+    console.error(`[stream] unexpected error for id=${id}:`, e.message);
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
 }
