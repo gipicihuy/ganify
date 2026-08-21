@@ -188,6 +188,7 @@ const URL_KEY_HINTS = [
   'download',
   'downloadurl',
   'downloadUrl',
+  'downloadURL',
   'url',
   'link',
   'mp3',
