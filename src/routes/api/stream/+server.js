@@ -6,6 +6,14 @@ const KEY_HEX = 'C5D58EF67A7584E4A29F6C35BBC4EB12';
 const CDNS = ['cdn405.savetube.vip', 'cdn403.savetube.vip', 'cdn401.savetube.vip'];
 const ATTEMPT_TIMEOUT = 10000;
 
+const MUSIC_BASE = 'https://music.youtube.com';
+const MUSIC_API = MUSIC_BASE + '/youtubei/v1';
+const MUSIC_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+const MUSIC_CLIENT_VERSION = '1.20260804.16.00';
+const MUSIC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
+
+let cachedSignatureTimestamp;
+
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
@@ -128,432 +136,180 @@ async function savetube(videoId) {
   return null;
 }
 
-function spoofHeaders() {
-  const ip = () =>
-    Array.from(
-      { length: 4 },
-      () => Math.floor(Math.random() * 256)
-    ).join('.');
-
-  const randomIp = ip();
-
-  return {
-    'x-forwarded-for': randomIp,
-    'x-real-ip': randomIp,
-    'client-ip': randomIp
+async function musicPost(endpoint, body) {
+  const payload = {
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: MUSIC_CLIENT_VERSION,
+        hl: 'en',
+        gl: 'US',
+        userAgent: MUSIC_USER_AGENT
+      }
+    },
+    ...body
   };
+  const res = await fetch(`${MUSIC_API}/${endpoint}?key=${MUSIC_API_KEY}&prettyPrint=false`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': MUSIC_USER_AGENT,
+      'X-Youtube-Client-Name': '67',
+      'X-Youtube-Client-Version': MUSIC_CLIENT_VERSION,
+      Origin: MUSIC_BASE,
+      Referer: MUSIC_BASE + '/'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(`Music request failed (${res.status})`);
+  return res.json();
 }
 
-const FALLBACK_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0';
-
-function baseFallbackHeaders() {
-  return {
-    'user-agent': FALLBACK_UA,
-    accept: '*/*',
-    'accept-language': 'en-GB,en;q=0.9,en-US;q=0.8',
-    'cache-control': 'no-cache',
-    pragma: 'no-cache',
-    ...spoofHeaders()
-  };
+function runsToText(runs) {
+  return (runs || []).map((r) => r.text || '').join('');
 }
 
-async function fetchJson(url, description, options = {}) {
-  try {
-    const headers = {
-      ...baseFallbackHeaders(),
-      ...(options.headers || {})
-    };
-
-    const res = await fetch(url, {
-      method: options.method || 'GET',
-      headers,
-      body: options.body
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    return await res.json();
-  } catch (e) {
-    throw new Error(
-      `[${description}] ${e.message || 'Request failed'}`
-    );
-  }
+async function getSignatureTimestamp() {
+  if (cachedSignatureTimestamp) return cachedSignatureTimestamp;
+  const html = await fetch(MUSIC_BASE + '/', { headers: { 'User-Agent': MUSIC_USER_AGENT } }).then((r) => r.text());
+  const playerJs = html.match(/\/s\/player\/[^"']*base\.js/)?.[0];
+  if (!playerJs) throw new Error('Unable to locate player script');
+  const js = await fetch(MUSIC_BASE + playerJs, { headers: { 'User-Agent': MUSIC_USER_AGENT } }).then((r) => r.text());
+  cachedSignatureTimestamp = Number(js.match(/signatureTimestamp:(\d+)/)?.[1] || 0);
+  return cachedSignatureTimestamp;
 }
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+async function findSongVideoId(videoId) {
+  const json = await musicPost('next', { videoId, isAudioOnly: true });
+  const queue =
+    json.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer
+      ?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer
+      ?.content?.playlistPanelRenderer;
+  const track =
+    queue?.contents?.find((c) => c.playlistPanelVideoRenderer?.selected)
+      ?.playlistPanelVideoRenderer ||
+    queue?.contents?.[0]?.playlistPanelVideoRenderer;
+  const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
+  const artist = runsToText(track?.shortBylineText?.runs);
+  const query = `${title} ${artist}`.trim();
+  if (!query) return null;
 
-const URL_KEY_HINTS = [
-  'download',
-  'downloadurl',
-  'downloadUrl',
-  'downloadURL',
-  'url',
-  'link',
-  'mp3',
-  'audio',
-  'dlink',
-  'dl'
-];
-
-function findUrlInResult(obj, depth = 0) {
-  if (!obj || depth > 4) return null;
-
-  if (typeof obj === 'string') {
-    return /^https?:\/\/\S+/.test(obj) ? obj : null;
-  }
-
-  if (typeof obj !== 'object') return null;
-
-  for (const key of URL_KEY_HINTS) {
-    const val = obj[key];
-
-    if (typeof val === 'string' && val.startsWith('http')) {
-      return val;
+  const searchJson = await musicPost('search', { query, params: 'EgWKAQIIAWoMEA4QChADEAQQCRAF' });
+  const sections =
+    searchJson.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content
+      ?.sectionListRenderer?.contents || [];
+  
+  for (const section of sections) {
+    const shelf = section.musicShelfRenderer;
+    if (!shelf) continue;
+    const items = shelf.contents || [];
+    for (const item of items) {
+      const renderer = item.musicResponsiveListItemRenderer;
+      if (!renderer) continue;
+      const flex = renderer.flexColumns || [];
+      const videoIdCandidate = renderer?.navigationEndpoint?.watchEndpoint?.videoId || 
+                              renderer?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
+      if (videoIdCandidate && videoIdCandidate !== videoId) {
+        return videoIdCandidate;
+      }
     }
   }
-
-  for (const val of Object.values(obj)) {
-    if (typeof val === 'object' && val) {
-      const found = findUrlInResult(val, depth + 1);
-
-      if (found) return found;
-    }
-  }
-
   return null;
 }
 
-async function mp3dl(url) {
-  const generateToken = () => {
-    const payload = JSON.stringify({
-      timestamp: Date.now()
-    });
-
-    const key = Buffer.from(
-      'dyhQjAtqAyTIf3PdsKcJ6nMX1suz8ksZ'
-    );
-
-    const cipher = nodeCrypto.createCipheriv(
-      'aes-256-cbc',
-      key,
-      key.subarray(0, 16)
-    );
-
-    let encrypted = cipher.update(
-      payload,
-      'utf8',
-      'base64'
-    );
-
-    encrypted += cipher.final('base64');
-
-    return encrypted;
-  };
-
-  return await fetchJson(
-    'https://ds1.ezsrv.net/api/convert',
-    'MP3DL',
-    {
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        url,
-        quality: 128,
-        trim: false,
-        startT: 0,
-        endT: 0,
-        token: generateToken()
-      }),
-      method: 'POST'
-    }
-  );
-}
-
-async function y2matenu(url) {
-  return await fetchJson(
-    `https://e.mnuu.nu/?_=${Math.random()}`,
-    'Y2mate.nu',
-    {
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({ url }),
-      method: 'POST'
-    }
-  );
-}
-
-async function ytmp3cc(url) {
-  return await fetchJson(
-    `https://e.ecoe.cc/?_=${Math.random()}`,
-    'Ytmp3.cc',
-    {
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({ url }),
-      method: 'POST'
-    }
-  );
-}
-
-async function ytmp3mobi(url, videoId) {
-  const headers = {
-    Referer: 'https://id.ytmp3.mobi/'
-  };
-
-  const init = await fetchJson(
-    `https://d.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=${Math.random()}`,
-    'Init Ytmp3mobi',
-    { headers }
-  );
-
-  if (!init?.convertURL) {
-    throw new Error('Ytmp3mobi: convertURL tidak ditemukan');
-  }
-
-  const params = new URLSearchParams({
-    v: videoId,
-    f: 'mp3',
-    _: Math.random().toString()
+async function musicDownload(videoId, depth = 0) {
+  const signatureTimestamp = await getSignatureTimestamp();
+  const json = await musicPost('player', {
+    videoId,
+    contentCheckOk: true,
+    racyCheckOk: true,
+    playbackContext: { contentPlaybackContext: { signatureTimestamp } }
   });
 
-  const initial = await fetchJson(
-    `${init.convertURL}&${params.toString()}`,
-    'Progress Ytmp3mobi',
-    { headers }
-  );
-
-  let progress = initial.progress;
-  let downloadURL = initial.downloadURL;
-  const progressURL = initial.progressURL;
-
-  if (!progressURL && !downloadURL) {
-    throw new Error(
-      'Ytmp3mobi: progressURL/downloadURL tidak ditemukan'
-    );
-  }
-
-  let attempts = 0;
-
-  while (!downloadURL && progress !== 3 && attempts < 15) {
-    await delay(2000);
-
-    const status = await fetchJson(
-      progressURL,
-      'Status Ytmp3mobi',
-      { headers }
-    );
-
-    if (status.error) {
-      throw new Error(
-        `Ytmp3mobi Error: ${status.error}`
-      );
-    }
-
-    progress = status.progress;
-
-    if (status.downloadURL) {
-      downloadURL = status.downloadURL;
-    }
-
-    attempts++;
-  }
-
-  if (!downloadURL) {
-    throw new Error(
-      `Ytmp3mobi: conversion timeout (progress=${progress})`
-    );
-  }
-
-  return { downloadURL };
-}
-
-async function ytmp3ing(url) {
-  const initRes = await fetch(
-    'https://ytmp3.ing/',
-    {
-      headers: baseFallbackHeaders()
-    }
-  );
-
-  const html = await initRes.text();
-  const cookie = initRes.headers.get('set-cookie') || '';
-  const csrfmiddlewaretoken =
-    html.match(/value="([^"]+)"/)?.[1];
-
-  if (!csrfmiddlewaretoken) {
-    throw new Error(
-      'Gagal mendapatkan token CSRF.'
-    );
-  }
-
-  const bodyData =
-    `------WebKitFormBoundaryeByWolep\r\n` +
-    `Content-Disposition: form-data; name="url"\r\n\r\n` +
-    `${url}\r\n` +
-    `------WebKitFormBoundaryeByWolep--\r\n`;
-
-  const res = await fetch(
-    'https://ytmp3.ing/audio',
-    {
-      method: 'POST',
-      headers: {
-        ...baseFallbackHeaders(),
-        'content-type':
-          'multipart/form-data; boundary=----WebKitFormBoundaryeByWolep',
-        'x-csrftoken': csrfmiddlewaretoken,
-        cookie
-      },
-      body: bodyData
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Ytmp3ing HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  let { url: downloadUrl } = data;
-
-  if (downloadUrl) {
-    downloadUrl = atob(downloadUrl);
-  }
-
-  return { url: downloadUrl };
-}
-
-async function hybridfallrye(videoId) {
-  const infoJson = await fetchJson(
-    `https://c01-h01.cdnframe.com/api/v4/info/${videoId}`,
-    'Info Hybridfallrye'
-  );
-
-  const token =
-    infoJson?.formats?.audio?.mp3?.[0]?.token;
-
-  if (!token) {
-    throw new Error(
-      'Gagal mendapatkan token Hybridfallrye.'
-    );
-  }
-
-  const convertJson = await fetchJson(
-    'https://c01-h01.cdnframe.com/api/v4/convert',
-    'Konversi Hybridfallrye',
-    {
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({ token }),
-      method: 'POST'
-    }
-  );
-
-  const { jobId } = convertJson;
-
-  if (!jobId) {
-    throw new Error(
-      'Gagal mendapatkan ID pekerjaan.'
-    );
-  }
-
-  let job = {};
-  let attempts = 0;
-
-  while (job.progress !== 100 && attempts < 15) {
-    job = await fetchJson(
-      `https://c01-h01.cdnframe.com/api/v4/status/${jobId}`,
-      'Status Hybridfallrye',
-      {
-        headers: {
-          'content-type': 'application/json'
+  const status = json.playabilityStatus?.status;
+  if (status !== 'OK') {
+    if (depth === 0) {
+      const songVideoId = await findSongVideoId(videoId);
+      if (songVideoId) {
+        const resolved = await musicDownload(songVideoId, 1);
+        if (resolved.status === 'OK') {
+          return { ...resolved, videoId };
         }
       }
-    );
-
-    if (
-      job.progress === 100 &&
-      job.status === 'active'
-    ) {
-      throw new Error(
-        `Konversi gagal: ${job.state}`
-      );
     }
+    return {
+      videoId,
+      status,
+      reason: json.playabilityStatus?.reason || null
+    };
+  }
 
-    if (job.progress !== 100) {
-      attempts++;
-      await delay(3000);
-    }
+  const formats = [
+    ...(json.streamingData?.formats || []),
+    ...(json.streamingData?.adaptiveFormats || [])
+  ];
+  
+  const audioFormats = formats.filter((f) => f.mimeType?.startsWith('audio'));
+  const bestAudio = audioFormats.reduce((best, current) => {
+    const bestBitrate = best?.bitrate || 0;
+    const currentBitrate = current?.bitrate || 0;
+    return currentBitrate > bestBitrate ? current : best;
+  }, audioFormats[0]);
+
+  if (!bestAudio) {
+    return { videoId, status: 'NO_AUDIO_FORMAT' };
+  }
+
+  let downloadUrl = bestAudio.url;
+  if (!downloadUrl && (bestAudio.signatureCipher || bestAudio.cipher)) {
+    const cipher = bestAudio.signatureCipher || bestAudio.cipher;
+    const params = new URLSearchParams(cipher);
+    downloadUrl = params.get('url');
+  }
+
+  if (!downloadUrl) {
+    return { videoId, status: 'NO_DOWNLOAD_URL' };
   }
 
   return {
-    download: job.download
+    videoId,
+    status: 'OK',
+    url: downloadUrl,
+    title: json.videoDetails?.title,
+    artist: json.videoDetails?.author,
+    lengthSeconds: Number(json.videoDetails?.lengthSeconds || 0)
   };
 }
 
-const FALLBACK_PROVIDERS = [
-  {
-    name: 'mp3dl',
-    run: fullUrl => mp3dl(fullUrl)
-  },
-  {
-    name: 'ytmp3cc',
-    run: fullUrl => ytmp3cc(fullUrl)
-  },
-  {
-    name: 'y2matenu',
-    run: fullUrl => y2matenu(fullUrl)
-  },
-  {
-    name: 'ytmp3mobi',
-    run: (fullUrl, videoId) =>
-      ytmp3mobi(fullUrl, videoId)
-  },
-  {
-    name: 'ytmp3ing',
-    run: fullUrl => ytmp3ing(fullUrl)
-  },
-  {
-    name: 'hybridfallrye',
-    run: (fullUrl, videoId) =>
-      hybridfallrye(videoId)
-  }
-];
-
-async function fallbackChain(videoId) {
-  const fullUrl =
-    `https://www.youtube.com/watch?v=${videoId}`;
-
-  for (const provider of FALLBACK_PROVIDERS) {
-    try {
-      const result =
-        await provider.run(fullUrl, videoId);
-
-      const downloadUrl =
-        findUrlInResult(result);
-
-      if (downloadUrl) {
-        return downloadUrl;
-      }
-
-      console.error(
-        `[stream] fallback ${provider.name}: no url found in result`,
-        JSON.stringify(result)
-      );
-    } catch (e) {
-      console.error(
-        `[stream] fallback ${provider.name} failed:`,
-        e.message
-      );
+async function getMusicDownloadUrl(videoId) {
+  try {
+    const result = await musicDownload(videoId);
+    if (result.status === 'OK' && result.url) {
+      return result.url;
     }
+    return null;
+  } catch (error) {
+    console.error(`[music] Failed to get download URL for ${videoId}:`, error.message);
+    return null;
+  }
+}
+
+async function combinedProvider(videoId) {
+  let downloadUrl = await savetube(videoId);
+  let source = 'savetube';
+
+  if (!downloadUrl) {
+    console.error(`[stream] savetube failed for id=${videoId}, trying music.youtube`);
+    downloadUrl = await getMusicDownloadUrl(videoId);
+    source = 'music.youtube';
   }
 
-  return null;
+  if (!downloadUrl) {
+    console.error(`[stream] both providers failed for id=${videoId}`);
+    return null;
+  }
+
+  return { url: downloadUrl, source };
 }
 
 export async function GET({ url }) {
@@ -567,23 +323,9 @@ export async function GET({ url }) {
   }
 
   try {
-    let downloadUrl = await savetube(id);
-    let source = 'savetube';
+    const result = await combinedProvider(id);
 
-    if (!downloadUrl) {
-      console.error(
-        `[stream] savetube failed for id=${id}, trying fallback chain`
-      );
-
-      downloadUrl = await fallbackChain(id);
-      source = 'fallback';
-    }
-
-    if (!downloadUrl) {
-      console.error(
-        `[stream] all providers (savetube + fallback) failed for id=${id}`
-      );
-
+    if (!result) {
       return new Response(
         JSON.stringify({ error: 'failed' }),
         { status: 500 }
@@ -592,8 +334,8 @@ export async function GET({ url }) {
 
     return new Response(
       JSON.stringify({
-        url: downloadUrl,
-        source
+        url: result.url,
+        source: result.source
       }),
       {
         headers: {
