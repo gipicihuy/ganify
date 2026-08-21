@@ -12,6 +12,9 @@ const MUSIC_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 const MUSIC_CLIENT_VERSION = '1.20260804.16.00';
 const MUSIC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
 
+const YTMP3_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const YTMP3_MAX_POLLS = 60;
+
 let cachedSignatureTimestamp;
 
 function hexToBytes(hex) {
@@ -198,7 +201,7 @@ async function findSongVideoId(videoId) {
   const sections =
     searchJson.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content
       ?.sectionListRenderer?.contents || [];
-  
+
   for (const section of sections) {
     const shelf = section.musicShelfRenderer;
     if (!shelf) continue;
@@ -207,7 +210,7 @@ async function findSongVideoId(videoId) {
       const renderer = item.musicResponsiveListItemRenderer;
       if (!renderer) continue;
       const flex = renderer.flexColumns || [];
-      const videoIdCandidate = renderer?.navigationEndpoint?.watchEndpoint?.videoId || 
+      const videoIdCandidate = renderer?.navigationEndpoint?.watchEndpoint?.videoId ||
                               renderer?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
       if (videoIdCandidate && videoIdCandidate !== videoId) {
         return videoIdCandidate;
@@ -248,7 +251,7 @@ async function musicDownload(videoId, depth = 0) {
     ...(json.streamingData?.formats || []),
     ...(json.streamingData?.adaptiveFormats || [])
   ];
-  
+
   const audioFormats = formats.filter((f) => f.mimeType?.startsWith('audio'));
   const bestAudio = audioFormats.reduce((best, current) => {
     const bestBitrate = best?.bitrate || 0;
@@ -294,6 +297,100 @@ async function getMusicDownloadUrl(videoId) {
   }
 }
 
+function ytmp3Headers() {
+  return {
+    'User-Agent': YTMP3_UA,
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Origin': 'https://id.ytmp3.mobi',
+    'Referer': 'https://id.ytmp3.mobi/',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'cross-site'
+  };
+}
+
+async function ytmp3Scraper(videoId, format = 'mp3') {
+  const headers = ytmp3Headers();
+  const lowerFormat = format.toLowerCase();
+
+  const initUrl = `https://a.ymcdn.org/api/v1/init?p=y&23=1llum1n471&_=${Math.random()}`;
+  const initRes = await fetch(initUrl, { headers });
+  if (!initRes.ok) {
+    throw new Error(`ytmp3 init failed with status code ${initRes.status}`);
+  }
+  const initJson = await initRes.json();
+  if (initJson.error > 0) {
+    throw new Error(`ytmp3 init API returned error: ${initJson.error}`);
+  }
+
+  let convertUrl = initJson.convertURL;
+  let convertRequestUrl = `${convertUrl}&v=${videoId}&f=${lowerFormat}&_=${Math.random()}`;
+  let convertJson;
+
+  while (true) {
+    const convertRes = await fetch(convertRequestUrl, { headers });
+    if (!convertRes.ok) {
+      throw new Error(`ytmp3 convert failed with status code ${convertRes.status}`);
+    }
+    convertJson = await convertRes.json();
+    if (convertJson.error > 0) {
+      throw new Error(`ytmp3 convert API returned error: ${convertJson.error}`);
+    }
+
+    if (convertJson.redirect > 0 && convertJson.redirectURL) {
+      convertRequestUrl = `${convertJson.redirectURL}&v=${videoId}&f=${lowerFormat}&_=${Math.random()}`;
+      continue;
+    }
+    break;
+  }
+
+  const progressUrl = convertJson.progressURL;
+  const downloadUrl = convertJson.downloadURL;
+
+  if (!progressUrl) {
+    throw new Error('ytmp3 conversion response is missing progress URL');
+  }
+
+  let progress = 0;
+  let pollCount = 0;
+
+  while (progress < 3 && pollCount < YTMP3_MAX_POLLS) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    pollCount++;
+
+    const progressRes = await fetch(progressUrl, { headers });
+    if (!progressRes.ok) {
+      throw new Error(`ytmp3 progress request failed with status code ${progressRes.status}`);
+    }
+    const progressJson = await progressRes.json();
+    if (progressJson.error > 0) {
+      throw new Error(`ytmp3 progress API returned error: ${progressJson.error}`);
+    }
+
+    progress = progressJson.progress;
+  }
+
+  if (progress < 3) {
+    throw new Error('ytmp3 conversion timed out');
+  }
+
+  if (!downloadUrl) {
+    throw new Error('ytmp3 conversion completed but no downloadUrl was returned');
+  }
+
+  return downloadUrl;
+}
+
+async function getYtmp3DownloadUrl(videoId) {
+  try {
+    return await ytmp3Scraper(videoId, 'mp3');
+  } catch (error) {
+    console.error(`[ytmp3] Failed to get download URL for ${videoId}:`, error.message);
+    return null;
+  }
+}
+
 async function combinedProvider(videoId) {
   let downloadUrl = await savetube(videoId);
   let source = 'savetube';
@@ -305,7 +402,13 @@ async function combinedProvider(videoId) {
   }
 
   if (!downloadUrl) {
-    console.error(`[stream] both providers failed for id=${videoId}`);
+    console.error(`[stream] music.youtube failed for id=${videoId}, trying ytmp3`);
+    downloadUrl = await getYtmp3DownloadUrl(videoId);
+    source = 'ytmp3';
+  }
+
+  if (!downloadUrl) {
+    console.error(`[stream] all providers failed for id=${videoId}`);
     return null;
   }
 
