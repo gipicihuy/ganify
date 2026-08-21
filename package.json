@@ -1,0 +1,27 @@
+{
+  "name": "music-app",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cf:dev": "npm run build && wrangler pages dev .svelte-kit/cloudflare",
+    "cf:deploy": "npm run build && wrangler pages deploy .svelte-kit/cloudflare"
+  },
+  "dependencies": {
+    "yt-search": "^2.13.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-cloudflare": "^7.2.9",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "svelte": "^4.0.0",
+    "tailwindcss": "^3.3.6",
+    "vite": "^5.0.3",
+    "wrangler": "^4.0.0"
+  },
+  "type": "module"
+}
