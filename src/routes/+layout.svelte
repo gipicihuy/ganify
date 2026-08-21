@@ -930,139 +930,74 @@
   </div>
 {/if}
 
-<nav class="liquid-nav" style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50">
-  <div class="liquid-nav-inner" style="--nav-count:{_navItems.length}">
-    <ul class="liquid-nav-list">
-      {#each _navItems as [p, l, ic], i}
-        <li class="liquid-nav-item {_rt === p ? 'active' : ''}">
-          <button on:click={() => goto(p)} class="liquid-nav-link">
-            <span class="liquid-nav-icon">
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d={ic}/></svg>
-            </span>
-            <span class="liquid-nav-text">{l}</span>
-          </button>
-        </li>
-      {/each}
-      <div class="liquid-nav-indicator" style="left:calc((100% / var(--nav-count)) * {_activeIdx + 0.5})"></div>
-    </ul>
-  </div>
+<nav class="bottom-nav">
+  <ul class="bottom-nav-list">
+    {#each _navItems as [p, l, ic], i}
+      <li class="bottom-nav-item">
+        <button on:click={() => goto(p)} class="bottom-nav-link {_rt === p ? 'active' : ''}">
+          <span class="bottom-nav-icon">
+            <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d={ic}/></svg>
+          </span>
+          <span class="bottom-nav-text">{l}</span>
+        </button>
+      </li>
+    {/each}
+  </ul>
 </nav>
 
 <style>
-  .liquid-nav { overflow: visible; }
-
-  .liquid-nav-inner {
-    position: relative;
-    height: 52px;
-    overflow: visible;
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
     background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.45);
-    padding: 0 4px;
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  .liquid-nav-list {
-    position: relative;
+  .bottom-nav-list {
     display: flex;
-    height: 100%;
     list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
-  .liquid-nav-item {
-    position: relative;
-    width: 60px;
-    height: 52px;
-    z-index: 1;
+  .bottom-nav-item {
+    flex: 1;
   }
 
-  .liquid-nav-link {
-    position: relative;
+  .bottom-nav-link {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     width: 100%;
-    height: 100%;
+    height: 58px;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
+    color: rgba(245,245,245,.4);
+    transition: color .2s ease;
   }
 
-  .liquid-nav-icon {
-    position: relative;
+  .bottom-nav-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(245,245,245,.38);
-    transition: transform .4s cubic-bezier(.5,-.3,.5,1.3), color .3s ease;
   }
 
-  .liquid-nav-icon svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .liquid-nav-item.active .liquid-nav-icon {
-    transform: translateY(-19px);
-    color: var(--bg);
-  }
-
-  .liquid-nav-text {
-    position: absolute;
-    bottom: 5px;
-    font-size: 8.5px;
+  .bottom-nav-text {
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: .03em;
-    color: #FFFFFF;
-    opacity: 0;
-    white-space: nowrap;
-    transform: translateY(8px);
-    transition: .4s;
+    letter-spacing: .02em;
   }
 
-  .liquid-nav-item.active .liquid-nav-text {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .liquid-nav-indicator {
-    position: absolute;
-    top: -14px;
-    width: 42px;
-    height: 42px;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, var(--gold), var(--gold-soft));
-    border-radius: 50%;
-    border: 4px solid var(--bg);
-    box-shadow: 0 4px 12px rgba(0,0,0,.4);
-    transition: left .4s cubic-bezier(.5,-.3,.5,1.3);
-    z-index: 0;
-  }
-
-  .liquid-nav-indicator::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -13px;
-    width: 13px;
-    height: 13px;
-    background: transparent;
-    border-top-right-radius: 13px;
-    box-shadow: 1px -6px 0 0 var(--bg);
-  }
-
-  .liquid-nav-indicator::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: -13px;
-    width: 13px;
-    height: 13px;
-    background: transparent;
-    border-top-left-radius: 13px;
-    box-shadow: -1px -6px 0 0 var(--bg);
+  .bottom-nav-link.active {
+    color: var(--gold, #D4AF37);
   }
 
   @keyframes _sp   { to { transform: rotate(360deg); } }
