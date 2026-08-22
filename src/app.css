@@ -98,7 +98,7 @@ body {
 .player-bar { background: #181818; border-top: 1px solid var(--border); box-shadow: 0 -2px 16px rgba(0,0,0,.4); }
 
 .artist-photo {
-  width: 128px; height: 128px; border-radius: 50%; object-fit: cover;
+  width: 128px; height: 128px; border-radius: 0; object-fit: cover;
   border: 3px solid var(--border); box-shadow: var(--shadow-flat); background: var(--bg-raised);
 }
 

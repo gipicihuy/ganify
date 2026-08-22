@@ -327,7 +327,7 @@
   {#if _ld}
     <div style="display:flex;flex-direction:column;gap:10px">
       {#each Array(5) as _}
-        <div class="glass-card" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center">
+        <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center">
           <div class="skeleton" style="width:72px;height:72px;border-radius:8px;flex-shrink:0"></div>
           <div style="flex:1;display:flex;flex-direction:column;gap:8px">
             <div class="skeleton" style="height:11px;width:72%;border-radius:6px"></div>
@@ -381,7 +381,7 @@
       {:else}
       <div class="song-grid" style="padding-bottom:16px">
         {#each _ds as item, i}
-          <div class="glass-card animate-card-up"
+          <div class="animate-card-up"
             style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(i,10)*30}ms;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
@@ -389,7 +389,7 @@
               style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
               <div style="position:relative;flex-shrink:0">
                 <img src={item.thumbnail} alt={item.title}
-                  style="width:52px;height:52px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                  style="width:52px;height:52px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
                   <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
@@ -427,7 +427,7 @@
         {#each _artists as a, i}
           <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
             style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;animation-delay:{i*40}ms">
-            <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+            <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:0;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
             <span style="font-size:.72rem;font-weight:700;color:#F5F5F5;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:100%;line-height:1.25;word-break:break-word">{a.title}</span>
           </button>
         {/each}
@@ -437,7 +437,7 @@
         {#each _albums as al, i}
           <button on:click={() => goto(`/album/${al.id}`)} class="glass-card animate-card-up"
             style="border-radius:14px;padding:10px;background:none;cursor:pointer;text-align:left;animation-delay:{i*40}ms">
-            <img src={al.cover} alt={al.title} style="width:100%;aspect-ratio:1;border-radius:10px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+            <img src={al.cover} alt={al.title} style="width:100%;aspect-ratio:1;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
             <p style="font-size:.78rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.title}</p>
             <p style="font-size:.68rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.artist}</p>
           </button>

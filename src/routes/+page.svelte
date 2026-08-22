@@ -277,7 +277,7 @@
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
       {#each Array(4) as _}
-        <div class="glass-card" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center">
+        <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center">
           <div class="skeleton" style="width:72px;height:72px;border-radius:8px;flex-shrink:0"></div>
           <div style="flex:1;display:flex;flex-direction:column;gap:8px">
             <div class="skeleton" style="height:11px;width:75%;border-radius:6px"></div>
@@ -302,8 +302,8 @@
           <span class="bar"></span>
           <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Sorotan {_moods[_activeMood].label}</span>
         </div>
-        <div class="glass-card hero-card animate-card-up"
-          style="border-radius:20px;overflow:hidden;position:relative;cursor:pointer;
+        <div class="hero-card animate-card-up"
+          style="border-radius:0;overflow:hidden;position:relative;cursor:pointer;
             {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.4);box-shadow:0 0 24px rgba(255,255,255,.15)' : ''}"
           role="button" tabindex="0"
           on:click={() => _pl(item, idx)} on:keydown={e => e.key === 'Enter' && _pl(item, idx)}>
@@ -353,8 +353,8 @@
         </div>
         <div class="quick-grid">
           {#each _quick as { item, idx }, i}
-            <div class="glass-card animate-card-up quick-card"
-              style="border-radius:14px;overflow:hidden;position:relative;cursor:pointer;animation-delay:{i*40}ms;
+            <div class="animate-card-up quick-card"
+              style="border-radius:0;overflow:hidden;position:relative;cursor:pointer;animation-delay:{i*40}ms;
                 {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.4);box-shadow:0 0 16px rgba(255,255,255,.13)' : ''}"
               role="button" tabindex="0"
               on:click={() => _pl(item, idx)} on:keydown={e => e.key === 'Enter' && _pl(item, idx)}>
@@ -401,8 +401,8 @@
         </div>
         <div class="hscroll hide-scrollbar">
           {#each _extra as item, i}
-            <div class="glass-card animate-card-up mix-card"
-              style="border-radius:14px;overflow:hidden;position:relative;cursor:pointer;flex-shrink:0;animation-delay:{i*35}ms;
+            <div class="animate-card-up mix-card"
+              style="border-radius:0;overflow:hidden;position:relative;cursor:pointer;flex-shrink:0;animation-delay:{i*35}ms;
                 {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.4);box-shadow:0 0 16px rgba(255,255,255,.13)' : ''}"
               role="button" tabindex="0"
               on:click={() => _playExtra(item, i)} on:keydown={e => e.key === 'Enter' && _playExtra(item, i)}>
@@ -446,7 +446,7 @@
             <button on:click={() => _openCollection(c)}
               style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0;position:relative">
               <div style="position:relative">
-                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
                 <span style="position:absolute;top:6px;left:6px;font-size:.55rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
                   color:#F5F5F5;background:rgba(10,10,10,.6);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:2px 8px">{c._kind}</span>
               </div>
@@ -477,7 +477,7 @@
           {#each _artists as a}
             <button on:click={() => goto(`/artist/${a.id}`)}
               style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;background:none;border:none;cursor:pointer;padding:0">
-              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:0;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
               <span style="font-size:.66rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
             </button>
           {/each}
@@ -493,7 +493,7 @@
 
       <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:8px">
         {#each _rest as { item, idx }, i}
-          <div class="glass-card animate-card-up"
+          <div class="animate-card-up"
             style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(i,10)*30}ms;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
@@ -501,7 +501,7 @@
               style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
               <div style="position:relative;flex-shrink:0">
                 <img src={item.thumbnail} alt={item.title}
-                  style="width:52px;height:52px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                  style="width:52px;height:52px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
                   <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>

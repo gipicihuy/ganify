@@ -137,13 +137,13 @@
     {:else}
       <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
         {#each _rp as item, i}
-          <div class="glass-card" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+          <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
             {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
             <button on:click={() => _pl(item, _rp, i)}
               style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
               <div style="position:relative;flex-shrink:0">
                 <img src={item.thumbnail} alt={item.title}
-                  style="width:56px;height:56px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                  style="width:56px;height:56px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
                   <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
@@ -202,7 +202,7 @@
           <button on:click={() => _openPl(pl)}
             class="glass-card"
             style="border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;text-align:left;width:100%;cursor:pointer">
-            <div style="width:56px;height:56px;border-radius:10px;flex-shrink:0;
+            <div style="width:56px;height:56px;border-radius:0;flex-shrink:0;
               background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
               overflow:hidden;display:flex;align-items:center;justify-content:center">
               {#if pl.tracks.length === 0}
@@ -325,13 +325,13 @@
       {:else}
         <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
           {#each _openedPlaylist.tracks as item, i}
-            <div class="glass-card" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
               <button on:click={() => _pl(item, _openedPlaylist.tracks, i)}
                 style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
                 <div style="position:relative;flex-shrink:0">
                   <img src={item.thumbnail} alt={item.title}
-                    style="width:56px;height:56px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                    style="width:56px;height:56px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                   {#if $_q8z?.videoId === item.videoId}
                     <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
                       <svg width="16" height="16" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>

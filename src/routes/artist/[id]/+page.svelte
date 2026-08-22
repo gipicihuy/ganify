@@ -73,11 +73,11 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:26px">
         {#each _data.topSongs as item, i}
-          <div class="glass-card animate-card-up" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;animation-delay:{Math.min(i,10)*30}ms">
+          <div class="animate-card-up" style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;animation-delay:{Math.min(i,10)*30}ms">
             <button on:click={() => _pl(item, i, _data.topSongs.map(s => ({ ...s, author: s.artist })))}
               style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
               <div style="position:relative;flex-shrink:0">
-                <img src={item.thumbnail} alt={item.title} style="width:64px;height:64px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                <img src={item.thumbnail} alt={item.title} style="width:64px;height:64px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
                   <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
@@ -110,7 +110,7 @@
       <div class="hscroll" style="margin-bottom:26px">
         {#each _data.topAlbums as al}
           <button on:click={() => goto(`/album/${al.id}`)} style="background:none;border:none;cursor:pointer;text-align:left;width:130px;flex-shrink:0">
-            <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+            <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
             <p style="font-size:.76rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.title}</p>
             <p style="font-size:.65rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.artist}</p>
           </button>
@@ -126,7 +126,7 @@
       <div class="hscroll" style="margin-bottom:26px">
         {#each _data.topSingles as al}
           <button on:click={() => goto(`/album/${al.id}`)} style="background:none;border:none;cursor:pointer;text-align:left;width:130px;flex-shrink:0">
-            <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+            <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
             <p style="font-size:.76rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.title}</p>
             <p style="font-size:.65rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.artist}</p>
           </button>
@@ -142,7 +142,7 @@
       <div class="hscroll" style="margin-bottom:26px">
         {#each _data.similarArtists as a}
           <button on:click={() => goto(`/artist/${a.id}`)} style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;flex-shrink:0">
-            <img src={a.cover} alt={a.title} style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.15)" loading="lazy" />
+            <img src={a.cover} alt={a.title} style="width:80px;height:80px;border-radius:0;object-fit:cover;border:2px solid rgba(255,255,255,.15)" loading="lazy" />
             <span style="font-size:.7rem;font-weight:700;color:#F5F5F5;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{a.title}</span>
           </button>
         {/each}

@@ -574,12 +574,12 @@
         style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
         <div style="position:relative;flex-shrink:0;width:46px;height:46px">
           {#if _loading}
-            <img src={$_q8z.thumbnail} alt="" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.15);opacity:.5" />
+            <img src={$_q8z.thumbnail} alt="" style="width:46px;height:46px;border-radius:0;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.15);opacity:.5" />
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
               <div class="player-spin"></div>
             </div>
           {:else}
-            <img src={$_q8z.thumbnail} alt="" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.3)" />
+            <img src={$_q8z.thumbnail} alt="" style="width:46px;height:46px;border-radius:0;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.3)" />
             <div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:#FFFFFF;border-right-color:rgba(255,255,255,.25);animation:_ring 1.8s linear infinite;animation-play-state:{$_playing ? 'running' : 'paused'}"></div>
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#181818;border:1.5px solid rgba(255,255,255,.4)"></div>
           {/if}
@@ -687,10 +687,10 @@
     {#if !$_showLyrics}
     <div style="position:relative;width:min(300px,78vw);height:min(300px,78vw)">
       {#if _loading}
-        <img src={$_q8z.thumbnail} alt="" style="width:100%;height:100%;border-radius:20px;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.1);opacity:.4" />
+        <img src={$_q8z.thumbnail} alt="" style="width:100%;height:100%;border-radius:0;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.1);opacity:.4" />
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div class="np-spin"></div></div>
       {:else}
-        <img src={$_q8z.thumbnail} alt="" style="width:100%;height:100%;border-radius:20px;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.15);box-shadow:0 8px 32px rgba(0,0,0,.5)" />
+        <img src={$_q8z.thumbnail} alt="" style="width:100%;height:100%;border-radius:0;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.15);box-shadow:0 8px 32px rgba(0,0,0,.5)" />
       {/if}
     </div>
 
@@ -815,7 +815,7 @@
 
       <div style="padding:16px 20px 14px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08)">
         <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);position:absolute;top:16px;left:50%;transform:translateX(-50%)"></div>
-        <img src={$_showMenu.thumbnail} alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;margin-top:8px" />
+        <img src={$_showMenu.thumbnail} alt="" style="width:44px;height:44px;border-radius:0;object-fit:cover;flex-shrink:0;margin-top:8px" />
         <div style="flex:1;min-width:0;margin-top:8px">
           <p style="font-size:.8rem;font-weight:700;color:#F5F5F5;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{$_showMenu.title}</p>
           {#if $_showMenu.author}
@@ -858,7 +858,7 @@
               style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 0;
                 background:none;border:none;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;text-align:left;transition:opacity .15s"
               onmouseenter="this.style.opacity='.7'" onmouseleave="this.style.opacity='1'">
-              <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
+              <div style="width:40px;height:40px;border-radius:0;flex-shrink:0;
                 background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
                 overflow:hidden;display:flex;align-items:center;justify-content:center">
                 {#if pl.tracks.length === 0}
