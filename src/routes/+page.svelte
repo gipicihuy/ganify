@@ -503,11 +503,11 @@
                 <img src={item.thumbnail} alt={item.title}
                   style="width:52px;height:52px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
-                  <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
+                  <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
                   </div>
                 {:else if $__cv?.videoId === item.videoId}
-                  <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
+                  <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
                     {#if $_q8z?.videoId === item.videoId}
                       <div style="display:flex;align-items:flex-end;gap:2px;height:12px">
                         <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>

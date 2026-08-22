@@ -79,7 +79,7 @@
               <div style="position:relative;flex-shrink:0">
                 <img src={item.thumbnail} alt={item.title} style="width:64px;height:64px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
-                  <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
+                  <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
                   </div>
                 {/if}
