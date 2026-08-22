@@ -1,0 +1,13 @@
+# Copy file ini jadi ".dev.vars" (sudah di-gitignore) untuk development lokal.
+# Di production, JANGAN taruh di sini — gunakan:
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put TELEGRAM_CHAT_ID
+#   wrangler secret put TELEGRAM_WEBHOOK_SECRET
+
+TELEGRAM_BOT_TOKEN=123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TELEGRAM_CHAT_ID=123456789
+# Secret token untuk verifikasi webhook Telegram (opsional tapi disarankan)
+TELEGRAM_WEBHOOK_SECRET=ganti-dengan-string-acak-panjang
+
+# Opsional: minimum jarak waktu (ms) sebelum event identik dikirim ulang ke Telegram
+ACTIVITY_DEBOUNCE_MS=8000

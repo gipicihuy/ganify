@@ -1,3 +1,5 @@
+import { getClientIp, isBlocked, notifyEvent, runBackground } from '$lib/server/activityMonitor.js';
+
 const SECRET = 'msc_s3cr3t_g1vy_2026';
 const ENC_KEY_HEX = '4d7a9c2e1f8b3a6d0e5c9f2b7a4e1d8c';
 const SIGN_TTL = 15000;
@@ -289,10 +291,15 @@ async function performSearch(rawQuery) {
   return result;
 }
 
-export async function GET({ url, request }) {
+export async function GET({ url, request, platform }) {
   const q = url.searchParams.get('q') || '';
   const sig = url.searchParams.get('sig') || '';
   const ts = url.searchParams.get('ts') || '';
+  const ip = getClientIp(request);
+
+  if (await isBlocked(platform, ip)) {
+    return new Response(JSON.stringify({ e: 1 }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
   if (!verifyFingerprint(request)) {
     return new Response(JSON.stringify({ e: 1 }), { status: 403, headers: { 'Content-Type': 'application/json' } });
   }
@@ -302,6 +309,11 @@ export async function GET({ url, request }) {
   try {
     const result = await performSearch(q);
     const payload = await encrypt(result);
+    runBackground(platform, notifyEvent(platform, 'search', {
+      ip,
+      endpoint: 'GET /api/search',
+      detail: { query: normalizeQuery(q) }
+    }));
     return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ e: 1 }), { status: 500, headers: { 'Content-Type': 'application/json' } });

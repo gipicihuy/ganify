@@ -1,3 +1,5 @@
+import { getClientIp, isBlocked, notifyEvent, runBackground } from '$lib/server/activityMonitor.js';
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36';
 
 function cleanT(t) {
@@ -144,11 +146,16 @@ function dedupeCandidates(lists) {
   return candidates;
 }
 
-export async function GET({ url }) {
+export async function GET({ url, request, platform }) {
   const title = (url.searchParams.get('title') || '').trim();
   const artist = (url.searchParams.get('artist') || '').trim();
   const durationParam = url.searchParams.get('duration');
   const duration = durationParam && isFinite(+durationParam) ? +durationParam : null;
+  const ip = getClientIp(request);
+
+  if (await isBlocked(platform, ip)) {
+    return new Response(JSON.stringify({ status: false, message: 'Blocked' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
   if (!title) return new Response(JSON.stringify({ status: false, message: 'Parameter title wajib diisi' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
   try {
@@ -171,6 +178,12 @@ export async function GET({ url }) {
           : { type: 'plain', lines: parsePlainLyrics(best.item.plainLyrics) };
       }
     }
+    runBackground(platform, notifyEvent(platform, 'lyrics', {
+      ip,
+      endpoint: 'GET /api/lyrics',
+      detail: { title: title || '-', artist: artist || '-' }
+    }));
+
     return new Response(JSON.stringify({ status: true, result: { title, artist, lyrics: lyricsData } }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ status: false, message: 'Gagal: ' + e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

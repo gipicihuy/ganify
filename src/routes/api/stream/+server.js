@@ -1,4 +1,5 @@
 import nodeCrypto from 'node:crypto';
+import { getClientIp, isBlocked, notifyEvent, runBackground } from '$lib/server/activityMonitor.js';
 
 const UA = 'Mozilla/5.0 (Linux; Android 15; SM-F958 Build/AP3A.240905.015) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.86 Mobile Safari/537.36';
 const KEY_HEX = 'C5D58EF67A7584E4A29F6C35BBC4EB12';
@@ -415,8 +416,17 @@ async function combinedProvider(videoId) {
   return { url: downloadUrl, source };
 }
 
-export async function GET({ url }) {
+export async function GET({ url, request, platform }) {
   const id = url.searchParams.get('id');
+  // title/artist dikirim opsional oleh client hanya untuk keperluan
+  // notifikasi/monitoring — tidak dipakai oleh logic pengambilan stream.
+  const title = url.searchParams.get('title') || '';
+  const artist = url.searchParams.get('artist') || '';
+  const ip = getClientIp(request);
+
+  if (await isBlocked(platform, ip)) {
+    return new Response(JSON.stringify({ error: 'blocked' }), { status: 403 });
+  }
 
   if (!id) {
     return new Response(
@@ -434,6 +444,12 @@ export async function GET({ url }) {
         { status: 500 }
       );
     }
+
+    runBackground(platform, notifyEvent(platform, 'song', {
+      ip,
+      endpoint: 'GET /api/stream',
+      detail: { title: title || id, artist: artist || '-' }
+    }));
 
     return new Response(
       JSON.stringify({

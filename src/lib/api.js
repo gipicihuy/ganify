@@ -102,11 +102,14 @@ export async function _g9(q, group = 'default') {
   return p;
 }
 
-export async function _getStreamUrl(videoId) {
+export async function _getStreamUrl(videoId, title = '', artist = '') {
   if (_mem.has(videoId)) return _mem.get(videoId);
   const disk = _loadCache();
   if (disk[videoId]) { const url = disk[videoId].u; _mem.set(videoId, url); return url; }
-  const r = await fetch(`/api/stream?id=${encodeURIComponent(videoId)}`);
+  let q = `/api/stream?id=${encodeURIComponent(videoId)}`;
+  if (title) q += `&title=${encodeURIComponent(title)}`;
+  if (artist) q += `&artist=${encodeURIComponent(artist)}`;
+  const r = await fetch(q);
   const j = await r.json();
   const url = j.url || null;
   if (url) { _mem.set(videoId, url); disk[videoId] = { u: url, t: Date.now() }; _saveCache(disk); }

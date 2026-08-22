@@ -343,7 +343,7 @@
     _audioEl.pause();
     _audioEl.src = '';
     _syncSeekEls(0);
-    const url = await _getStreamUrl(track.videoId);
+    const url = await _getStreamUrl(track.videoId, track.title, track.artist || track.author);
     _loading = false;
     if (!url) return;
     _audioEl.src = url;
