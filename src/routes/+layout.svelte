@@ -313,6 +313,8 @@
       _playing.set(true);
       _resetPositionForNewTrack();
       _loadAndPlay($_q8z);
+      _lyricsTrackId = $_q8z.videoId;
+      _loadLyrics($_q8z);
     }
   });
 
@@ -325,8 +327,9 @@
     _resetPositionForNewTrack();
     _loadAndPlay($_q8z);
     _lyrics = null;
-    _lyricsTrackId = null;
     _showLyrics.set(false);
+    _lyricsTrackId = $_q8z.videoId;
+    _loadLyrics($_q8z);
     addRecentlyPlayed($_q8z);
     _recentlyPlayed.set(
       (() => { try { return JSON.parse(localStorage.getItem('_msc_rp') || '[]'); } catch { return []; } })()
