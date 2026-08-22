@@ -202,7 +202,7 @@
           <button on:click={() => _openPl(pl)}
             class="glass-card"
             style="border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;text-align:left;width:100%;cursor:pointer">
-            <div style="width:56px;height:56px;border-radius:0;flex-shrink:0;
+            <div style="width:56px;height:56px;border-radius:10px;flex-shrink:0;
               background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
               overflow:hidden;display:flex;align-items:center;justify-content:center">
               {#if pl.tracks.length === 0}

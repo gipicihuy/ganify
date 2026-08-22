@@ -446,7 +446,7 @@
             <button on:click={() => _openCollection(c)}
               style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0;position:relative">
               <div style="position:relative">
-                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
                 <span style="position:absolute;top:6px;left:6px;font-size:.55rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
                   color:#F5F5F5;background:rgba(10,10,10,.6);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:2px 8px">{c._kind}</span>
               </div>
@@ -477,7 +477,7 @@
           {#each _artists as a}
             <button on:click={() => goto(`/artist/${a.id}`)}
               style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;background:none;border:none;cursor:pointer;padding:0">
-              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:0;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
               <span style="font-size:.66rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
             </button>
           {/each}

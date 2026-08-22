@@ -72,7 +72,7 @@
     </div>
   {:else if _data}
     <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:8px 0 22px">
-      <img src={_data.cover} alt={_data.title} style="width:180px;height:180px;border-radius:0;object-fit:cover;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12)" loading="lazy" />
+      <img src={_data.cover} alt={_data.title} style="width:180px;height:180px;border-radius:16px;object-fit:cover;box-shadow:0 8px 32px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12)" loading="lazy" />
       <h1 style="font-size:1.25rem;font-weight:700;color:#FFFFFF;margin:0;line-height:1.35">{_data.title}</h1>
       <p style="font-size:.78rem;color:rgba(245,245,245,.45);margin:0">{_data.songs?.length || 0} lagu</p>
 

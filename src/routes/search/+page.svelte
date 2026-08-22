@@ -427,7 +427,7 @@
         {#each _artists as a, i}
           <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
             style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;animation-delay:{i*40}ms">
-            <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:0;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+            <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
             <span style="font-size:.72rem;font-weight:700;color:#F5F5F5;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:100%;line-height:1.25;word-break:break-word">{a.title}</span>
           </button>
         {/each}
@@ -437,7 +437,7 @@
         {#each _albums as al, i}
           <button on:click={() => goto(`/album/${al.id}`)} class="glass-card animate-card-up"
             style="border-radius:14px;padding:10px;background:none;cursor:pointer;text-align:left;animation-delay:{i*40}ms">
-            <img src={al.cover} alt={al.title} style="width:100%;aspect-ratio:1;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+            <img src={al.cover} alt={al.title} style="width:100%;aspect-ratio:1;border-radius:10px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
             <p style="font-size:.78rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.title}</p>
             <p style="font-size:.68rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.artist}</p>
           </button>
