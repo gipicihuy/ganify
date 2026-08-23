@@ -37,9 +37,8 @@ function durationColon(text) {
 
 // Ambil nama artis dengan cara EXACT SAMA seperti /api/artist (header
 // musicImmersiveHeaderRenderer/musicVisualHeaderRenderer -> title.runs).
-// Dipakai supaya nama artis di halaman Album dijamin identik dengan yang
-// tampil di halaman Artist, bukan hasil tebakan dari header album yang
-// formatnya suka beda-beda dan sering gagal (jatuh ke "Unknown Artist").
+// Dipakai supaya nama artis yang tampil di halaman Album dijamin identik
+// dengan yang tampil di halaman Artist.
 async function fetchArtistName(artistId) {
   if (!artistId) return '';
   try {
@@ -54,6 +53,22 @@ async function fetchArtistName(artistId) {
   } catch {
     return '';
   }
+}
+
+// Header album di YT Music kadang null total (contoh: single "feat." track).
+// Sumber artis yang PALING andal justru bukan header/flexColumns, tapi entry
+// "Go to artist" di menu tiap lagu — itu link asli ke channel artis (browseId
+// + pageType MUSIC_PAGE_TYPE_ARTIST), sumber yang sama dipakai tombol "lihat
+// artis" di UI. ID ini valid buat halaman /artist juga.
+function findGoToArtistId(item) {
+  const menuItems = item.menu?.menuRenderer?.items || [];
+  for (const m of menuItems) {
+    const nav = m.menuNavigationItemRenderer?.navigationEndpoint;
+    const pageType = nav?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
+    const browseId = nav?.browseEndpoint?.browseId || '';
+    if (pageType === 'MUSIC_PAGE_TYPE_ARTIST' && browseId) return browseId;
+  }
+  return '';
 }
 
 export async function GET({ url }) {
@@ -73,17 +88,6 @@ export async function GET({ url }) {
       body: JSON.stringify({ context: { client: { clientName, clientVersion: isPlaylist ? '2.20240726.00.00' : '1.20240101.00.00', hl: 'en', gl: 'ID' } }, browseId })
     });
     const data = await r.json();
-
-    // Mode debug sementara buat nemuin struktur JSON asli dari YT Music
-    // (dipakai buat diagnosa kenapa nama artis gagal ke-extract). Aman untuk
-    // di-hit dari browser biasa, cuma dump bagian header + item lagu pertama.
-    if (url.searchParams.get('debug') === '1') {
-      const firstItem = data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.[0]?.musicPlaylistShelfRenderer?.contents?.[0] ||
-        data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer?.contents?.[0] ||
-        data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicPlaylistShelfRenderer?.contents?.[0] ||
-        data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer?.contents?.[0] || null;
-      return new Response(JSON.stringify({ header: data?.header || null, firstItem, microformat: data?.microformat || null }, null, 2), { headers: { 'Content-Type': 'application/json' } });
-    }
 
     let title = 'Unknown', description = '', thumbnails = [];
     const songs = [];
@@ -160,6 +164,10 @@ export async function GET({ url }) {
       let albumArtist = headerArtists[0]?.name || '';
       let albumArtistId = headerArtists[0]?.id || '';
 
+      // Cache nama artis per browseId dalam 1 request, biar lagu-lagu lain
+      // yang artisnya sama (dalam album yang sama) gak fetch berkali-kali.
+      const artistNameCache = new Map();
+
       // Begitu albumArtistId ketemu, timpa albumArtist dengan nama resmi hasil
       // fetch ke browseId artis itu (logic sama persis dgn /api/artist), biar
       // nama yang tampil di setiap lagu di halaman Album konsisten dan sama
@@ -216,7 +224,24 @@ export async function GET({ url }) {
           const songTitle = getRunsText(i.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []);
           const artistRuns = i.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
           let { artist, artistId } = pickArtist(artistRuns);
-          if (!artist) { artist = albumArtist || 'Unknown Artist'; artistId = artistId || albumArtistId; }
+          if (!artist) {
+            // flexColumns[1] sering kosong (mis. header & kolom artis kosong
+            // total, seperti pada single "feat."). Fallback paling andal:
+            // entry "Go to artist" di menu lagu ini, lalu ambil nama resminya
+            // dengan cara yang sama persis dengan /api/artist, biar konsisten
+            // dengan yang tampil di halaman Artist.
+            const menuArtistId = findGoToArtistId(i);
+            if (menuArtistId) {
+              artistId = menuArtistId;
+              if (!artistNameCache.has(menuArtistId)) {
+                artistNameCache.set(menuArtistId, await fetchArtistName(menuArtistId));
+              }
+              artist = artistNameCache.get(menuArtistId) || albumArtist || 'Unknown Artist';
+            } else {
+              artist = albumArtist || 'Unknown Artist';
+              artistId = artistId || albumArtistId;
+            }
+          }
           const duration = durationColon(getRunsText(i.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs || []));
           const rawThumb = i.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
           const thumb = transformThumbs(rawThumb, videoId);
