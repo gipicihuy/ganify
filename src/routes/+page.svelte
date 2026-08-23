@@ -2,10 +2,11 @@
   // Cache di level modul: bertahan selama halaman ini pernah dimuat sekali di sesi SPA,
   // jadi saat user balik dari halaman lain (mis. halaman artis), feed tidak di-fetch ulang.
   let _homeCache = null;
+  let _homeScrollY = 0;
 </script>
 
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { _g9, _getArtist } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
@@ -175,12 +176,20 @@
       _artists = _homeCache.artists;
       _artistsLoading = false;
       _ld = false;
+      await tick();
+      window.scrollTo(0, _homeScrollY);
       return;
     }
 
     await _loadFeed(_activeMood);
     await _loadArtistsTop();
     _saveCache();
+    await tick();
+    window.scrollTo(0, _homeScrollY);
+  });
+
+  onDestroy(() => {
+    _homeScrollY = window.scrollY;
   });
 
   async function _pl(item, idx) {
