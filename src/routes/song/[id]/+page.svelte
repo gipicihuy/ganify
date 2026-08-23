@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { _q8z, _p1k, _x9a, _showNP } from '$lib/store.js';
   import { _getSongInfo } from '$lib/api.js';
+  import { _loadQueueSnapshot } from '$lib/queueSnapshot.js';
 
   function _stripTopic(name) {
     return (name || '').replace(/\s*-\s*topic\s*$/i, '').trim();
@@ -50,6 +51,18 @@
     if ($_q8z && $_q8z.videoId === id) {
       _showNP.set(true);
       return;
+    }
+
+    const snapshot = _loadQueueSnapshot();
+    if (snapshot) {
+      const idx = snapshot.queue.findIndex(t => t.videoId === id);
+      if (idx !== -1) {
+        _p1k.set(snapshot.queue);
+        _x9a.set(idx);
+        _q8z.set(snapshot.queue[idx]);
+        _showNP.set(true);
+        return;
+      }
     }
 
     const track = await _fetchTrackInfo(id);
