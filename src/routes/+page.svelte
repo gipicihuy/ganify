@@ -629,19 +629,10 @@
                 </p>
               </button>
               {#if item.author}
-                {#if item.artistId}
-                  <button on:click={() => goto(`/artist/${item.artistId}`)}
-                    style="display:block;width:100%;background:none;border:none;cursor:pointer;padding:0;
-                    font-size:.7rem;font-weight:500;color:rgba(255,255,255,.5);margin:0;text-align:left;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    {item.author}
-                  </button>
-                {:else}
-                  <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    {item.author}
-                  </p>
-                {/if}
+                <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.5);margin:0;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                  {item.author}
+                </p>
               {/if}
             </div>
 
