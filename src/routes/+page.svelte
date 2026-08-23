@@ -22,7 +22,10 @@
   let _artistsLoading = true;
   let _activeMood = 0;
 
-  const _artistQuery = 'Denny Caknan Tulus Raisa Yura Yunita Mahalini Rizky Febian NIKI Rich Brian Weird Genius';
+  const _artistNames = [
+    'Denny Caknan', 'Tulus', 'Raisa', 'Yura Yunita', 'Mahalini',
+    'Rizky Febian', 'NIKI', 'Rich Brian', 'Weird Genius'
+  ];
 
   const _moods = [
     { label: 'Viral', query: 'Lagu Indonesia Viral Tiktok 2026' },
@@ -124,6 +127,28 @@
       : _shuffle(_artistsAll).slice(0, 10);
   }
 
+  async function _fetchPopularArtists() {
+    // Query tiap nama artis SECARA TERPISAH (grup unik per nama) supaya
+    // request paralel ini tidak saling abort (lihat catatan di _g9 soal
+    // "abort the previous query in the same group"), lalu digabung & dedupe.
+    // Sebelumnya semua nama digabung jadi satu string query, yang membuat
+    // YouTube Music mencarinya sebagai satu kalimat utuh dan sering
+    // menghasilkan sedikit/nol artis.
+    const results = await Promise.all(
+      _artistNames.map(name =>
+        _g9(name, `_home_artist_${name}`).catch(() => ({ artists: [] }))
+      )
+    );
+    const seen = new Set();
+    const merged = [];
+    for (const r of results) {
+      for (const a of (r.artists || [])) {
+        if (a.id && !seen.has(a.id)) { seen.add(a.id); merged.push(a); }
+      }
+    }
+    return merged;
+  }
+
   async function _pickMood(i) {
     if (_activeMood === i) return;
     _activeMood = i;
@@ -165,8 +190,7 @@
 
     await _loadFeed(_activeMood);
     try {
-      const ra = await _g9(_artistQuery, '_home_artists');
-      _artistsAll = ra.artists || [];
+      _artistsAll = await _fetchPopularArtists();
       _pickArtistGroups();
     } catch {
       _artistsAll = []; _artists = []; _popularArtists = [];
