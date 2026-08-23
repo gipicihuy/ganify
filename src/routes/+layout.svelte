@@ -1,7 +1,7 @@
 <script>
   import '../app.css';
   import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics } from '$lib/store.js';
   import { _getStreamUrl, _getLyrics } from '$lib/api.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist } from '$lib/playlist.js';
@@ -301,6 +301,25 @@
   }
 
   let _mounted = false;
+  let _npReturnPath = '/';
+
+  function _isSongRoute(pathname) {
+    return pathname.startsWith('/song/');
+  }
+
+  $: if (_mounted && $_showNP && $_q8z) {
+    const _npTarget = `/song/${$_q8z.videoId}`;
+    const _onSongRoute = _isSongRoute($page.url.pathname);
+    if (!_onSongRoute) _npReturnPath = $page.url.pathname + $page.url.search;
+    if ($page.url.pathname !== _npTarget) {
+      goto(_npTarget, { noScroll: true, keepFocus: true, replaceState: _onSongRoute });
+    }
+  }
+
+  afterNavigate(({ to }) => {
+    const _path = to?.url?.pathname || '';
+    if (!_isSongRoute(_path) && $_showNP) _showNP.set(false);
+  });
 
   onMount(() => {
     _mounted = true;
@@ -503,6 +522,7 @@
     _lyrics = null;
     _q8z.set(null);
     _setBodyLock(false);
+    if (_isSongRoute($page.url.pathname)) goto(_npReturnPath || '/', { noScroll: true, keepFocus: true });
     if ('mediaSession' in navigator) {
       _clearPositionState();
       navigator.mediaSession.playbackState = 'none';
@@ -518,6 +538,7 @@
   function _closeNP() {
     _showNP.set(false);
     _setBodyLock(false);
+    if (_isSongRoute($page.url.pathname)) goto(_npReturnPath || '/', { noScroll: true, keepFocus: true });
   }
 
   function _handleNPBack() {
