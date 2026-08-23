@@ -165,12 +165,28 @@ function parseQueueTrack(track) {
   return { videoId: track.videoId, title, thumbnail, duration, author: artist, artist, artistId };
 }
 
+async function fetchQueuePanel(videoId, withMix) {
+  const body = withMix ? { videoId, playlistId: `RDAMVM${videoId}`, isAudioOnly: true } : { videoId, isAudioOnly: true };
+  const json = await musicPost('next', body);
+  return json.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer
+    ?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer
+    ?.content?.playlistPanelRenderer;
+}
+
 async function fetchTrackMeta(videoId) {
-  const json = await musicPost('next', { videoId, isAudioOnly: true });
-  const queue =
-    json.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer
-      ?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer
-      ?.content?.playlistPanelRenderer;
+  let queue = await fetchQueuePanel(videoId, true);
+
+  // Beberapa video (biasanya yang bukan bagian dari album/playlist resmi)
+  // tidak punya mix/radio otomatis di YT Music, jadi permintaan dengan
+  // playlistId di atas bisa balik dengan antrian kosong/1 lagu doang. Coba
+  // sekali lagi tanpa playlistId sebagai fallback kedua sebelum benar-benar
+  // menyerah ke mode 1 lagu.
+  if (!queue?.contents || queue.contents.length <= 1) {
+    try {
+      const plain = await fetchQueuePanel(videoId, false);
+      if (plain?.contents?.length > (queue?.contents?.length || 0)) queue = plain;
+    } catch { /* pakai hasil pertama */ }
+  }
 
   const track =
     queue?.contents?.find((c) => c.playlistPanelVideoRenderer?.videoId === videoId)
