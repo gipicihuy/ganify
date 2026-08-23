@@ -128,6 +128,12 @@ export async function _getArtist(id) {
   return j.status ? j.result : null;
 }
 
+export async function _getSongInfo(videoId) {
+  const r = await fetch(`/api/song?id=${encodeURIComponent(videoId)}`);
+  const j = await r.json();
+  return j.status ? j.result : null;
+}
+
 export async function _getLyrics(title, artist, duration) {
   let q = `/api/lyrics?title=${encodeURIComponent(title || '')}&artist=${encodeURIComponent(artist || '')}`;
   if (duration && isFinite(duration) && duration > 0) q += `&duration=${Math.round(duration)}`;

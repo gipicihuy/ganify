@@ -3,8 +3,13 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { _q8z, _p1k, _x9a, _showNP } from '$lib/store.js';
+  import { _getSongInfo } from '$lib/api.js';
 
-  async function _fetchTrackInfo(id) {
+  function _stripTopic(name) {
+    return (name || '').replace(/\s*-\s*topic\s*$/i, '').trim();
+  }
+
+  async function _fetchFromOembed(id) {
     let title = '';
     let author = '';
     let thumbnail = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -14,13 +19,28 @@
       if (r.ok) {
         const j = await r.json();
         title = j.title || '';
-        author = j.author_name || '';
+        author = _stripTopic(j.author_name || '');
         if (j.thumbnail_url) thumbnail = j.thumbnail_url;
       }
     } catch {
       title = '';
     }
-    return title ? { videoId: id, title, thumbnail, author, artist: author, duration: '' } : null;
+    return title ? { videoId: id, title, thumbnail, author, artist: author, artistId: '', duration: '' } : null;
+  }
+
+  async function _fetchTrackInfo(id) {
+    // Sumber utama: endpoint sendiri (lewat server, jadi nggak bergantung
+    // pada koneksi klien ke domain YouTube yang kadang diblokir jaringan
+    // tertentu). Ini juga yang menyediakan artistId asli & nama artis yang
+    // sudah bersih dari suffix channel seperti "- Topic".
+    try {
+      const info = await _getSongInfo(id);
+      if (info && info.title) return { ...info, artist: _stripTopic(info.artist), author: _stripTopic(info.author) };
+    } catch { /* lanjut ke fallback */ }
+
+    // Fallback kalau endpoint di atas gagal (mis. video tidak ditemukan di
+    // YT Music): coba oEmbed langsung dari klien.
+    return _fetchFromOembed(id);
   }
 
   onMount(async () => {
