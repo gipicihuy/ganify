@@ -1,6 +1,32 @@
 const _RP_KEY = '_msc_rp';
 const _PL_KEY = '_msc_pl';
+const _LK_KEY = '_msc_lk';
 const _RP_MAX = 30;
+
+export function getLikedSongs() {
+  try {
+    const r = localStorage.getItem(_LK_KEY);
+    return r ? JSON.parse(r) : [];
+  } catch { return []; }
+}
+
+export function isSongLiked(videoId) {
+  return getLikedSongs().some(t => t.videoId === videoId);
+}
+
+// Toggle status suka lagu ini, simpan ke localStorage, dan balikin daftar
+// terbaru + status suka setelah toggle (dipakai buat sinkronin store).
+export function toggleLikeSong(track) {
+  let list = getLikedSongs();
+  const liked = list.some(t => t.videoId === track.videoId);
+  if (liked) {
+    list = list.filter(t => t.videoId !== track.videoId);
+  } else {
+    list = [{ ...track, likedAt: Date.now() }, ...list];
+  }
+  try { localStorage.setItem(_LK_KEY, JSON.stringify(list)); } catch {}
+  return { list, liked: !liked };
+}
 
 export function getRecentlyPlayed() {
   try {
