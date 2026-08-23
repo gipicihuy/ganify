@@ -15,11 +15,10 @@
   let _ds = [], _ld = true, _er = null;
   let _refreshing = false;
   let _collection = [];
-  let _extra = [];
-  let _extraLabel = '';
   let _loadingId = null;
   let _artistsAll = [];
   let _artists = [];
+  let _popularArtists = [];
   let _artistsLoading = true;
   let _activeMood = 0;
 
@@ -105,8 +104,6 @@
 
       _ds = capped;
       _p1k.set(_ds);
-      _extra = extraSongs;
-      _extraLabel = _moods[flavorAIdx].label;
 
       const albumItems = (primary.albums || []).slice(0, 8).map(a => ({ ...a, _kind: a.albumType || 'Album' }));
       const playlistItems = (primary.playlists || []).slice(0, 6).map(p => ({ ...p, _kind: 'Playlist' }));
@@ -117,6 +114,14 @@
     } finally {
       _ld = false;
     }
+  }
+
+  function _pickArtistGroups() {
+    const shuffled = _shuffle(_artistsAll);
+    _artists = shuffled.slice(0, 10);
+    _popularArtists = shuffled.length > 10
+      ? shuffled.slice(10, 20)
+      : _shuffle(_artistsAll).slice(0, 10);
   }
 
   async function _pickMood(i) {
@@ -131,7 +136,7 @@
     _refreshing = true;
     try {
       await _loadFeed(_activeMood);
-      if (_artistsAll.length) _artists = _shuffle(_artistsAll).slice(0, 10);
+      if (_artistsAll.length) _pickArtistGroups();
       _saveCache();
     } finally {
       _refreshing = false;
@@ -140,20 +145,19 @@
 
   function _saveCache() {
     _homeCache = {
-      ds: _ds, extra: _extra, extraLabel: _extraLabel, collection: _collection,
-      activeMood: _activeMood, artistsAll: _artistsAll, artists: _artists
+      ds: _ds, collection: _collection,
+      activeMood: _activeMood, artistsAll: _artistsAll, artists: _artists, popularArtists: _popularArtists
     };
   }
 
   onMount(async () => {
     if (_homeCache) {
       _ds = _homeCache.ds;
-      _extra = _homeCache.extra;
-      _extraLabel = _homeCache.extraLabel;
       _collection = _homeCache.collection;
       _activeMood = _homeCache.activeMood;
       _artistsAll = _homeCache.artistsAll;
       _artists = _homeCache.artists;
+      _popularArtists = _homeCache.popularArtists;
       _artistsLoading = false;
       _ld = false;
       return;
@@ -163,9 +167,9 @@
     try {
       const ra = await _g9(_artistQuery, '_home_artists');
       _artistsAll = ra.artists || [];
-      _artists = _shuffle(_artistsAll).slice(0, 10);
+      _pickArtistGroups();
     } catch {
-      _artistsAll = []; _artists = [];
+      _artistsAll = []; _artists = []; _popularArtists = [];
     } finally {
       _artistsLoading = false;
     }
@@ -175,14 +179,6 @@
   async function _pl(item, idx) {
     _loadingId = item.videoId;
     _p1k.set(_ds);
-    _x9a.set(idx);
-    _q8z.set(item);
-    setTimeout(() => { _loadingId = null; }, 3000);
-  }
-
-  async function _playExtra(item, idx) {
-    _loadingId = item.videoId;
-    _p1k.set(_extra);
     _x9a.set(idx);
     _q8z.set(item);
     setTimeout(() => { _loadingId = null; }, 3000);
@@ -422,43 +418,19 @@
       </div>
     {/if}
 
-    {#if _extra.length}
+    {#if _popularArtists.length}
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
-          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Vibes {_extraLabel}</span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis Populer</span>
         </div>
         <div class="hscroll hide-scrollbar">
-          {#each _extra as item, i}
-            <div class="animate-card-up mix-card"
-              style="border-radius:0;overflow:hidden;position:relative;cursor:pointer;flex-shrink:0;animation-delay:{i*35}ms;
-                {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.4);box-shadow:0 0 16px rgba(255,255,255,.13)' : ''}"
-              role="button" tabindex="0"
-              on:click={() => _playExtra(item, i)} on:keydown={e => e.key === 'Enter' && _playExtra(item, i)}>
-              <img src={item.thumbnail} alt={item.title} class="mix-img" loading="lazy" />
-              <div class="mix-scrim"></div>
-
-              {#if _loadingId === item.videoId}
-                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.4)">
-                  <div class="mini-spin"></div>
-                </div>
-              {:else if $_q8z?.videoId === item.videoId}
-                <div style="position:absolute;top:8px;right:8px;display:flex;align-items:flex-end;gap:2px;height:12px">
-                  <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>
-                  <div class="eq-bar-nm animate-eq-b" style="height:10px"></div>
-                  <div class="eq-bar-nm animate-eq-c" style="height:5px"></div>
-                </div>
-              {/if}
-
-              <div class="mix-body">
-                <p style="font-size:.7rem;font-weight:700;line-height:1.25;margin:0 0 2px;
-                  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-                  color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'}">{item.title}</p>
-                {#if item.author}
-                  <p style="font-size:.6rem;font-weight:600;color:rgba(245,245,245,.55);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
-                {/if}
-              </div>
-            </div>
+          {#each _popularArtists as a, i}
+            <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
+              style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;background:none;border:none;cursor:pointer;padding:0;animation-delay:{i*30}ms">
+              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+              <span style="font-size:.66rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
+            </button>
           {/each}
         </div>
       </div>
@@ -636,14 +608,6 @@
     background: linear-gradient(180deg, rgba(10,10,10,.05) 0%, rgba(10,10,10,.25) 45%, rgba(10,10,10,.88) 100%);
   }
   .quick-body { position: absolute; left: 10px; right: 10px; bottom: 9px; min-width: 0; }
-
-  .mix-card { width: 118px; height: 118px; }
-  .mix-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  .mix-scrim {
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(10,10,10,.05) 0%, rgba(10,10,10,.3) 45%, rgba(10,10,10,.9) 100%);
-  }
-  .mix-body { position: absolute; left: 9px; right: 9px; bottom: 8px; min-width: 0; }
 
   @media (min-width: 420px) {
     .hero-body { right: 80px; }
