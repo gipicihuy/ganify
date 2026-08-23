@@ -753,7 +753,7 @@
     <div style="display:flex;gap:8px;flex-shrink:0">
       <button on:click={() => _toggleLike($_q8z)} aria-label={_isLiked ? 'Hapus dari Lagu Disukai' : 'Suka lagu ini'}
         style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-          background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.7);cursor:pointer;color:#FFFFFF;transition:transform .12s"
+          background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);cursor:pointer;transition:transform .12s"
         onmousedown="this.style.transform='scale(.88)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
         {#if _isLiked}
           <svg width="18" height="18" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
