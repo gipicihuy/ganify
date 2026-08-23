@@ -33,15 +33,25 @@
     // Sumber utama: endpoint sendiri (lewat server, jadi nggak bergantung
     // pada koneksi klien ke domain YouTube yang kadang diblokir jaringan
     // tertentu). Ini juga yang menyediakan artistId asli & nama artis yang
-    // sudah bersih dari suffix channel seperti "- Topic".
+    // sudah bersih dari suffix channel seperti "- Topic", plus antrian "up
+    // next" bawaan YT Music buat lagu ini, dipakai sebagai queue kalau nggak
+    // ada context playlist dari halaman asal (mis. dibuka langsung dari link).
     try {
       const info = await _getSongInfo(id);
-      if (info && info.title) return { ...info, artist: _stripTopic(info.artist), author: _stripTopic(info.author) };
+      if (info && info.title) {
+        const { queue: rawQueue, ...rest } = info;
+        const track = { ...rest, artist: _stripTopic(rest.artist), author: _stripTopic(rest.author) };
+        const queue = Array.isArray(rawQueue) && rawQueue.length
+          ? rawQueue.map((t) => ({ ...t, artist: _stripTopic(t.artist), author: _stripTopic(t.author) }))
+          : null;
+        return { track, queue };
+      }
     } catch { /* lanjut ke fallback */ }
 
     // Fallback kalau endpoint di atas gagal (mis. video tidak ditemukan di
     // YT Music): coba oEmbed langsung dari klien.
-    return _fetchFromOembed(id);
+    const fallback = await _fetchFromOembed(id);
+    return fallback ? { track: fallback, queue: null } : null;
   }
 
   onMount(async () => {
@@ -65,12 +75,20 @@
       }
     }
 
-    const track = await _fetchTrackInfo(id);
-    if (!track) { goto('/'); return; }
+    const result = await _fetchTrackInfo(id);
+    if (!result) { goto('/'); return; }
 
-    _p1k.set([track]);
-    _x9a.set(0);
-    _q8z.set(track);
+    const { track, queue } = result;
+    if (queue && queue.length > 1) {
+      const idx = queue.findIndex((t) => t.videoId === id);
+      _p1k.set(queue);
+      _x9a.set(idx >= 0 ? idx : 0);
+      _q8z.set(idx >= 0 ? queue[idx] : track);
+    } else {
+      _p1k.set([track]);
+      _x9a.set(0);
+      _q8z.set(track);
+    }
     _showNP.set(true);
   });
 </script>
