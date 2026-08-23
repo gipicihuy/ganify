@@ -106,7 +106,7 @@ function findSongRowByVideoId(data, videoId) {
         for (const run of subRuns) {
           const text = run.text || '';
           const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
-          if (browseId.startsWith('UC') && !artist) { artist = text; artistId = browseId; }
+          if ((browseId.startsWith('UC') || browseId.startsWith('MPLA')) && !artist) { artist = text; artistId = browseId; }
           else if (browseId.startsWith('MPRE') && !album) { album = text; }
         }
         if (!artist) {
@@ -149,7 +149,7 @@ function parseQueueTrack(track) {
   for (const run of bylineRuns) {
     const text = run.text || '';
     const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
-    if (browseId.startsWith('UC') && !artist) { artist = text; artistId = browseId; }
+    if ((browseId.startsWith('UC') || browseId.startsWith('MPLA')) && !artist) { artist = text; artistId = browseId; }
   }
   if (!artist) artist = (bylineRuns[0]?.text || '');
   artist = stripTopic(artist);
@@ -201,6 +201,33 @@ async function fetchTrackMeta(videoId) {
     .map((c) => parseQueueTrack(c.playlistPanelVideoRenderer))
     .filter(Boolean);
 
+  // "shortBylineText" di antrian "up next" YT Music kadang tidak menyertakan
+  // browseId artis sama sekali (mis. lagu kolaborasi/featuring, atau video
+  // yang bukan bagian resmi dari katalog artis) — beda dengan lagu yang lagi
+  // diputar, yang sudah di-cross-check ke pencarian di bawah. Akibatnya nama
+  // artis di daftar "Lagu Serupa"/antrian jadi kadang bisa diklik (browseId
+  // ada) kadang enggak (browseId kosong), padahal datanya sama-sama dari YT
+  // Music. Di sini kita cross-check ulang khusus item yang artistId-nya
+  // kosong (dibatasi 20 request paralel biar nggak berat), pakai endpoint
+  // pencarian yang sama supaya konsisten dengan tempat lain di app.
+  const needsResolve = upNext.filter((t) => !t.artistId).slice(0, 20);
+  if (needsResolve.length) {
+    const resolved = await Promise.allSettled(
+      needsResolve.map(async (t) => {
+        const searchJson = await searchSongs(t.title);
+        return { videoId: t.videoId, match: findSongRowByVideoId(searchJson, t.videoId) };
+      })
+    );
+    const byId = new Map();
+    for (const r of resolved) {
+      if (r.status === 'fulfilled' && r.value.match?.artistId) byId.set(r.value.videoId, r.value.match);
+    }
+    for (const t of upNext) {
+      const match = byId.get(t.videoId);
+      if (match) { t.artist = match.artist; t.author = match.artist; t.artistId = match.artistId; }
+    }
+  }
+
   const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
   if (!title) return null;
 
@@ -213,7 +240,7 @@ async function fetchTrackMeta(videoId) {
   for (const run of bylineRuns) {
     const text = run.text || '';
     const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
-    if (browseId.startsWith('UC') && !fallbackArtist) { fallbackArtist = text; fallbackArtistId = browseId; }
+    if ((browseId.startsWith('UC') || browseId.startsWith('MPLA')) && !fallbackArtist) { fallbackArtist = text; fallbackArtistId = browseId; }
   }
   if (!fallbackArtist) fallbackArtist = (bylineRuns[0]?.text || '');
   fallbackArtist = stripTopic(fallbackArtist);
