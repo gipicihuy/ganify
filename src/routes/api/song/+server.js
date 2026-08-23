@@ -139,6 +139,32 @@ function findSongRowByVideoId(data, videoId) {
   return null;
 }
 
+function parseQueueTrack(track) {
+  if (!track || !track.videoId) return null;
+  const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
+  if (!title) return null;
+
+  const bylineRuns = track?.shortBylineText?.runs || [];
+  let artist = '', artistId = '';
+  for (const run of bylineRuns) {
+    const text = run.text || '';
+    const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
+    if (browseId.startsWith('UC') && !artist) { artist = text; artistId = browseId; }
+  }
+  if (!artist) artist = (bylineRuns[0]?.text || '');
+  artist = stripTopic(artist);
+
+  const thumbnail = toHDThumbnail(
+    (track?.thumbnail?.thumbnails || []).length
+      ? track.thumbnail.thumbnails[track.thumbnail.thumbnails.length - 1].url
+      : '',
+    track.videoId
+  );
+  const duration = track?.lengthText?.simpleText || runsToText(track?.lengthText?.runs) || '';
+
+  return { videoId: track.videoId, title, thumbnail, duration, author: artist, artist, artistId };
+}
+
 async function fetchTrackMeta(videoId) {
   const json = await musicPost('next', { videoId, isAudioOnly: true });
   const queue =
@@ -154,6 +180,10 @@ async function fetchTrackMeta(videoId) {
     queue?.contents?.[0]?.playlistPanelVideoRenderer;
 
   if (!track) return null;
+
+  const upNext = (queue?.contents || [])
+    .map((c) => parseQueueTrack(c.playlistPanelVideoRenderer))
+    .filter(Boolean);
 
   const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
   if (!title) return null;
@@ -197,7 +227,8 @@ async function fetchTrackMeta(videoId) {
     duration: matched?.duration || duration,
     author: matched?.artist || fallbackArtist,
     artist: matched?.artist || fallbackArtist,
-    artistId: matched?.artistId || fallbackArtistId
+    artistId: matched?.artistId || fallbackArtistId,
+    queue: upNext
   };
 }
 
