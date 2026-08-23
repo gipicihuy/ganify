@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { _getArtist } from '$lib/api.js';
@@ -11,7 +10,10 @@
 
   $: _id = $page.params.id;
 
-  onMount(load);
+  // reactive, bukan onMount: karena SvelteKit reuse komponen yang sama saat
+  // pindah dari /artist/A ke /artist/B (misal klik "Artis Serupa"), onMount
+  // saja cuma jalan sekali di navigasi pertama sehingga data lama nyangkut.
+  $: if (_id) load();
 
   async function load() {
     _ld = true; _er = null;
