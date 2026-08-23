@@ -36,6 +36,15 @@ body {
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Scroll indicator tipis & subtle untuk carousel yang scrollbar-nya sengaja
+   ditampilkan (Album, Single & EP, Artis Serupa) — tanpa ini, browser pakai
+   tinggi scrollbar horizontal default (~15px, tebal & mengganggu). */
+.hscroll:not(.hide-scrollbar) { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+.hscroll:not(.hide-scrollbar)::-webkit-scrollbar { height: 3px; }
+.hscroll:not(.hide-scrollbar)::-webkit-scrollbar-track { background: transparent; }
+.hscroll:not(.hide-scrollbar)::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 3px; }
+.hscroll:not(.hide-scrollbar)::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+
 .glass {
   background: rgba(40, 38, 30, 0.75);
   backdrop-filter: blur(16px);
