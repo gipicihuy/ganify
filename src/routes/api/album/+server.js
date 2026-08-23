@@ -74,6 +74,17 @@ export async function GET({ url }) {
     });
     const data = await r.json();
 
+    // Mode debug sementara buat nemuin struktur JSON asli dari YT Music
+    // (dipakai buat diagnosa kenapa nama artis gagal ke-extract). Aman untuk
+    // di-hit dari browser biasa, cuma dump bagian header + item lagu pertama.
+    if (url.searchParams.get('debug') === '1') {
+      const firstItem = data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.[0]?.musicPlaylistShelfRenderer?.contents?.[0] ||
+        data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer?.contents?.[0] ||
+        data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicPlaylistShelfRenderer?.contents?.[0] ||
+        data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer?.contents?.[0] || null;
+      return new Response(JSON.stringify({ header: data?.header || null, firstItem, microformat: data?.microformat || null }, null, 2), { headers: { 'Content-Type': 'application/json' } });
+    }
+
     let title = 'Unknown', description = '', thumbnails = [];
     const songs = [];
 
