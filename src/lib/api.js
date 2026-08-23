@@ -107,7 +107,7 @@ export async function _getHome() {
   const sig = await _sign(ts, '__home__');
   const r = await fetch(`/api/home?ts=${ts}&sig=${sig}`);
   const j = await r.json();
-  if (!j.d || !j.iv) return { songs: [] };
+  if (!j.d || !j.iv) return { songs: [], ok: false };
   return _decrypt(j.d, j.iv);
 }
 

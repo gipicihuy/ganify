@@ -148,7 +148,11 @@ async function performHome() {
   if (_homeCache && Date.now() - _homeCacheTime < HOME_CACHE_TTL) return _homeCache;
   const data = await fetchHome();
   const songs = dedupeBy(extractHomeSongs(data), s => s.videoId);
-  const result = { songs };
+  // Kalau YT Music menolak request anonim (butuh auth/session) atau format
+  // respons berubah, `songs` akan kosong. Jangan cache kegagalan — biar
+  // request berikutnya coba lagi, bukan ke-lock ke hasil kosong 5 menit.
+  if (songs.length === 0) return { songs: [], ok: false };
+  const result = { songs, ok: true };
   _homeCache = result;
   _homeCacheTime = Date.now();
   return result;

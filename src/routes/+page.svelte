@@ -88,14 +88,42 @@
     }
   }
 
+  // Query fallback kalau FEmusic_home gagal/kosong (mis. YT Music menolak
+  // request tanpa sesi login) — biar section tetap ada isinya, bukan hilang.
+  const _trendingFallbackQueries = [
+    'Top Trending Songs 2026',
+    'Lagu Indonesia Trending Sekarang',
+    'Global Top Hits 2026'
+  ];
+
+  async function _loadTrendingFallback() {
+    try {
+      const results = await Promise.all(
+        _trendingFallbackQueries.map(q => _g9(q, '_home_trending').catch(() => null))
+      );
+      const seen = new Set();
+      const pool = [];
+      for (const r of results) {
+        for (const s of (r?.songs || [])) {
+          if (!s.videoId || seen.has(s.videoId)) continue;
+          seen.add(s.videoId);
+          pool.push(s);
+        }
+      }
+      return _shuffle(pool).slice(0, 12);
+    } catch {
+      return [];
+    }
+  }
+
   async function _loadTrending() {
     _trendingLoading = true;
     try {
       const home = await _getHome();
       const pool = (home?.songs || []).filter(s => s.videoId);
-      _trending = _shuffle(pool).slice(0, 12);
+      _trending = pool.length ? _shuffle(pool).slice(0, 12) : await _loadTrendingFallback();
     } catch {
-      _trending = [];
+      _trending = await _loadTrendingFallback();
     } finally {
       _trendingLoading = false;
     }
