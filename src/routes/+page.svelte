@@ -8,7 +8,7 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _g9, _getArtist } from '$lib/api.js';
+  import { _g9, _getArtist, _getHome } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
   import { getPlaylists } from '$lib/playlist.js';
 
@@ -22,14 +22,6 @@
   let _activeMood = 0;
   let _trending = [];
   let _trendingLoading = true;
-
-  // Query generik ala "trending now" YT Music — bukan berbasis mood user,
-  // jadi kelihatan seperti apa yang lagi rame diputar banyak orang.
-  const _trendingQueries = [
-    'Top Trending Songs 2026',
-    'Lagu Indonesia Trending Sekarang',
-    'Global Top Hits 2026'
-  ];
 
   const _moods = [
     { label: 'Viral', query: 'Lagu Indonesia Viral Tiktok 2026' },
@@ -99,18 +91,8 @@
   async function _loadTrending() {
     _trendingLoading = true;
     try {
-      const results = await Promise.all(
-        _trendingQueries.map(q => _g9(q, '_home_trending').catch(() => null))
-      );
-      const seen = new Set();
-      const pool = [];
-      for (const r of results) {
-        for (const s of (r?.songs || [])) {
-          if (!s.videoId || seen.has(s.videoId)) continue;
-          seen.add(s.videoId);
-          pool.push(s);
-        }
-      }
+      const home = await _getHome();
+      const pool = (home?.songs || []).filter(s => s.videoId);
       _trending = _shuffle(pool).slice(0, 12);
     } catch {
       _trending = [];
