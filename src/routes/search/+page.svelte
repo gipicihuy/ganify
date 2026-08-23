@@ -386,8 +386,8 @@
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
             <button on:click={() => _pl(item, i)}
-              style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
-              <div style="position:relative;flex-shrink:0">
+              style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
+              <div style="position:relative">
                 <img src={item.thumbnail} alt={item.title}
                   style="width:52px;height:52px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
@@ -396,19 +396,32 @@
                   </div>
                 {/if}
               </div>
-              <div style="flex:1;min-width:0">
+            </button>
+
+            <div style="flex:1;min-width:0">
+              <button on:click={() => _pl(item, i)}
+                style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
                 <p style="font-size:.83rem;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                   color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">
                   {item.title}
                 </p>
-                {#if item.author}
+              </button>
+              {#if item.author}
+                {#if item.artistId}
+                  <button on:click={() => goto(`/artist/${item.artistId}`)}
+                    style="display:block;width:100%;background:none;border:none;cursor:pointer;padding:0;
+                    font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;text-align:left;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.author}
+                  </button>
+                {:else}
                   <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;
                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                     {item.author}
                   </p>
                 {/if}
-              </div>
-            </button>
+              {/if}
+            </div>
 
             <button on:click={e => _openMenu(e, item)}
               style="width:28px;height:28px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
