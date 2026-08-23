@@ -329,7 +329,13 @@
       _elapsed = 0;
       _total = _dur2s($_q8z.duration);
       _pct = 0;
-      _playing.set(true);
+      // Jangan optimis set "playing" di sini — kalau browser mem-block
+      // autoplay (lazim terjadi saat buka link lagu langsung tanpa tap
+      // tombol play di dalam app), event `play` asli di elemen <audio>
+      // di bawah tidak akan pernah nyala, dan status ini bakal nyangkut
+      // "playing" padahal audio-nya diam. Biarkan event `on:play` yang
+      // set true begitu playback beneran mulai.
+      _playing.set(false);
       _resetPositionForNewTrack();
       _loadAndPlay($_q8z);
       _lyricsTrackId = $_q8z.videoId;
@@ -342,7 +348,9 @@
     _elapsed = 0;
     _total = _dur2s($_q8z.duration);
     _pct = 0;
-    _playing.set(true);
+    // Sama seperti di onMount: status "playing" ditentukan oleh event
+    // `play` asli di elemen audio, bukan diasumsikan langsung nyala.
+    _playing.set(false);
     _resetPositionForNewTrack();
     _loadAndPlay($_q8z);
     _lyrics = null;
