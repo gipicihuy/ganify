@@ -35,6 +35,27 @@ function durationColon(text) {
   return String(text);
 }
 
+// Ambil nama artis dengan cara EXACT SAMA seperti /api/artist (header
+// musicImmersiveHeaderRenderer/musicVisualHeaderRenderer -> title.runs).
+// Dipakai supaya nama artis di halaman Album dijamin identik dengan yang
+// tampil di halaman Artist, bukan hasil tebakan dari header album yang
+// formatnya suka beda-beda dan sering gagal (jatuh ke "Unknown Artist").
+async function fetchArtistName(artistId) {
+  if (!artistId) return '';
+  try {
+    const r = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': UA, 'Origin': 'https://music.youtube.com' },
+      body: JSON.stringify({ context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20240101.00.00', hl: 'en', gl: 'ID' } }, browseId: artistId })
+    });
+    const d = await r.json();
+    const h = d?.header?.musicImmersiveHeaderRenderer || d?.header?.musicVisualHeaderRenderer || {};
+    return getRunsText(h.title?.runs || []);
+  } catch {
+    return '';
+  }
+}
+
 export async function GET({ url }) {
   const id = (url.searchParams.get('id') || '').trim();
   if (!id) return new Response(JSON.stringify({ status: false, message: 'Parameter id wajib diisi' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -127,6 +148,15 @@ export async function GET({ url }) {
       collectArtistRuns(data?.header || {}, headerArtists);
       let albumArtist = headerArtists[0]?.name || '';
       let albumArtistId = headerArtists[0]?.id || '';
+
+      // Begitu albumArtistId ketemu, timpa albumArtist dengan nama resmi hasil
+      // fetch ke browseId artis itu (logic sama persis dgn /api/artist), biar
+      // nama yang tampil di setiap lagu di halaman Album konsisten dan sama
+      // dengan yang tampil di halaman Artist.
+      if (albumArtistId) {
+        const canonicalName = await fetchArtistName(albumArtistId);
+        if (canonicalName) albumArtist = canonicalName;
+      }
 
       // Kalau gak ada run yang link ke channel (kompilasi "Various Artists" atau
       // format header lain), coba baca teks subtitle/strapline apa adanya.
