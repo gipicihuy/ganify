@@ -143,7 +143,7 @@
               style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
               <div style="position:relative">
                 <img src={item.thumbnail} alt={item.title}
-                  style="width:56px;height:56px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
+                  style="width:62px;height:62px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
                   <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
@@ -158,12 +158,12 @@
             <div style="flex:1;min-width:0">
               <button on:click={() => _pl(item, _rp, i)}
                 style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
-                <p style="font-size:.82rem;font-weight:700;line-height:1.35;
+                <p style="font-size:.9rem;font-weight:700;line-height:1.35;
                   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
                   color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
               </button>
               {#if item.author}
-                <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+                <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
               {/if}
             </div>
             <button on:click={e => _openMenu(e, { ...item, _ctx: 'recent' })}
@@ -334,7 +334,7 @@
                 style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
                 <div style="position:relative">
                   <img src={item.thumbnail} alt={item.title}
-                    style="width:56px;height:56px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
+                    style="width:62px;height:62px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                   {#if $_q8z?.videoId === item.videoId}
                     <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
                       <svg width="16" height="16" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
@@ -345,12 +345,12 @@
               <div style="flex:1;min-width:0">
                 <button on:click={() => _pl(item, _openedPlaylist.tracks, i)}
                   style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
-                  <p style="font-size:.82rem;font-weight:700;line-height:1.35;
+                  <p style="font-size:.9rem;font-weight:700;line-height:1.35;
                     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
                     color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
                 </button>
                 {#if item.author}
-                  <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+                  <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
                 {/if}
               </div>
               <button on:click={() => _removeFromPl(item.videoId)}
