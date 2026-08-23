@@ -81,9 +81,17 @@
     const { track, queue } = result;
     if (queue && queue.length > 1) {
       const idx = queue.findIndex((t) => t.videoId === id);
-      _p1k.set(queue);
+      // Item lagu yang lagi diputar di dalam antrian "up next" YT Music
+      // biasanya nggak nyertain link channel artis (artistId kosong).
+      // Data `track` di atas sudah dicocokkan ke pencarian YT Music dan
+      // punya artistId yang valid, jadi timpa posisi lagu ini di antrian
+      // dengan versi itu supaya nama artis tetap bisa diklik.
+      const mergedQueue = idx >= 0
+        ? queue.map((t, i) => (i === idx ? { ...t, ...track } : t))
+        : queue;
+      _p1k.set(mergedQueue);
       _x9a.set(idx >= 0 ? idx : 0);
-      _q8z.set(idx >= 0 ? queue[idx] : track);
+      _q8z.set(idx >= 0 ? mergedQueue[idx] : track);
     } else {
       _p1k.set([track]);
       _x9a.set(0);
