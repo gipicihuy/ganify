@@ -1,3 +1,9 @@
+<script context="module">
+  // Cache di level modul: bertahan selama halaman ini pernah dimuat sekali di sesi SPA,
+  // jadi saat user balik dari halaman lain (mis. halaman artis), feed tidak di-fetch ulang.
+  let _homeCache = null;
+</script>
+
 <script>
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -117,6 +123,7 @@
     if (_activeMood === i) return;
     _activeMood = i;
     await _loadFeed(i);
+    _saveCache();
   }
 
   async function _refresh() {
@@ -125,12 +132,33 @@
     try {
       await _loadFeed(_activeMood);
       if (_artistsAll.length) _artists = _shuffle(_artistsAll).slice(0, 10);
+      _saveCache();
     } finally {
       _refreshing = false;
     }
   }
 
+  function _saveCache() {
+    _homeCache = {
+      ds: _ds, extra: _extra, extraLabel: _extraLabel, collection: _collection,
+      activeMood: _activeMood, artistsAll: _artistsAll, artists: _artists
+    };
+  }
+
   onMount(async () => {
+    if (_homeCache) {
+      _ds = _homeCache.ds;
+      _extra = _homeCache.extra;
+      _extraLabel = _homeCache.extraLabel;
+      _collection = _homeCache.collection;
+      _activeMood = _homeCache.activeMood;
+      _artistsAll = _homeCache.artistsAll;
+      _artists = _homeCache.artists;
+      _artistsLoading = false;
+      _ld = false;
+      return;
+    }
+
     await _loadFeed(_activeMood);
     try {
       const ra = await _g9(_artistQuery, '_home_artists');
@@ -141,6 +169,7 @@
     } finally {
       _artistsLoading = false;
     }
+    _saveCache();
   });
 
   async function _pl(item, idx) {
@@ -498,8 +527,8 @@
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
             <button on:click={() => _pl(item, idx)}
-              style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
-              <div style="position:relative;flex-shrink:0">
+              style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
+              <div style="position:relative">
                 <img src={item.thumbnail} alt={item.title}
                   style="width:52px;height:52px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
                 {#if _loadingId === item.videoId}
@@ -518,27 +547,32 @@
                   </div>
                 {/if}
               </div>
-              <div style="flex:1;min-width:0">
+            </button>
+
+            <div style="flex:1;min-width:0">
+              <button on:click={() => _pl(item, idx)}
+                style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
                 <p style="font-size:.83rem;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                   color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">
                   {item.title}
                 </p>
-                {#if item.author}
-                  {#if item.artistId}
-                    <span role="link" tabindex="0" on:click|stopPropagation={() => goto(`/artist/${item.artistId}`)} on:keydown={() => {}}
-                      style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.5);margin:0;cursor:pointer;
-                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">
-                      {item.author}
-                    </span>
-                  {:else}
-                    <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;
-                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                      {item.author}
-                    </p>
-                  {/if}
+              </button>
+              {#if item.author}
+                {#if item.artistId}
+                  <button on:click={() => goto(`/artist/${item.artistId}`)}
+                    style="display:block;width:100%;background:none;border:none;cursor:pointer;padding:0;
+                    font-size:.7rem;font-weight:500;color:rgba(255,255,255,.5);margin:0;text-align:left;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.author}
+                  </button>
+                {:else}
+                  <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.author}
+                  </p>
                 {/if}
-              </div>
-            </button>
+              {/if}
+            </div>
 
             <button on:click={e => _openMenu(e, item)}
               style="width:28px;height:28px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
