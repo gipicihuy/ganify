@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { goto, afterNavigate } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics } from '$lib/store.js';
+  import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
   import { _getStreamUrl, _getLyrics } from '$lib/api.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist } from '$lib/playlist.js';
   import { onDestroy, onMount, tick } from 'svelte';
@@ -306,6 +307,8 @@
   function _isSongRoute(pathname) {
     return pathname.startsWith('/song/');
   }
+
+  $: if (_mounted && $_p1k.length) _saveQueueSnapshot($_p1k, $_x9a);
 
   $: if (_mounted && $_showNP && $_q8z) {
     const _npTarget = `/song/${$_q8z.videoId}`;
