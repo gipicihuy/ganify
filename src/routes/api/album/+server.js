@@ -106,23 +106,46 @@ export async function GET({ url }) {
           data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer?.contents || [];
       }
 
-      let albumArtist = getRunsText(h.subtitle?.runs || []);
-      if (albumArtist.includes(' • ')) {
-        albumArtist = albumArtist.split(' • ').find(x => {
-          const t = x.trim();
-          return !['Album', 'Single', 'EP', 'Playlist'].includes(t) && !/^\d{4}$/.test(t);
-        }) || albumArtist;
+      // Cara paling andal untuk nemu nama artis di header: bukan nebak field-nya
+      // ("subtitle" vs "straplineTextOne" vs apapun skema terbaru YT Music),
+      // tapi cari SEMUA run teks di seluruh subtree header yang link-nya beneran
+      // mengarah ke channel artis (browseId diawali "UC"). Itu penanda paling
+      // pasti "ini nama artis", terlepas dari field apa dia nempel.
+      function collectArtistRuns(obj, out) {
+        if (!obj || typeof obj !== 'object') return;
+        if (Array.isArray(obj)) { for (const it of obj) collectArtistRuns(it, out); return; }
+        if (Array.isArray(obj.runs)) {
+          for (const run of obj.runs) {
+            const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
+            if (browseId.startsWith('UC') && run.text) out.push({ name: run.text, id: browseId });
+          }
+        }
+        for (const key of Object.keys(obj)) { if (key !== 'runs') collectArtistRuns(obj[key], out); }
       }
-      // Fallback lain: strapline (dipakai musicImmersiveHeaderRenderer untuk nama
-      // pembuat/artist), lalu terakhir baru coba tebak dari judul "Album/Single/EP by X".
-      if (!albumArtist) albumArtist = getRunsText(h.straplineTextOne?.runs || []);
+
+      const headerArtists = [];
+      collectArtistRuns(data?.header || {}, headerArtists);
+      let albumArtist = headerArtists[0]?.name || '';
+      let albumArtistId = headerArtists[0]?.id || '';
+
+      // Kalau gak ada run yang link ke channel (kompilasi "Various Artists" atau
+      // format header lain), coba baca teks subtitle/strapline apa adanya.
+      if (!albumArtist) {
+        let subtitleText = getRunsText(h.subtitle?.runs || []);
+        if (subtitleText.includes(' • ')) {
+          subtitleText = subtitleText.split(' • ').find(x => {
+            const t = x.trim();
+            return !['Album', 'Single', 'EP', 'Playlist'].includes(t) && !/^\d{4}$/.test(t);
+          }) || '';
+        } else if (['Album', 'Single', 'EP', 'Playlist'].includes(subtitleText.trim())) {
+          subtitleText = '';
+        }
+        albumArtist = subtitleText || getRunsText(h.straplineTextOne?.runs || []);
+      }
       if (!albumArtist) {
         const mat = title.match(/(?:Album|Single|EP)\s+by\s+(.+)$/i);
         if (mat) albumArtist = mat[1].trim();
       }
-      const albumArtistId = (h.subtitle?.runs || h.straplineTextOne?.runs || [])
-        .find(r => (r?.navigationEndpoint?.browseEndpoint?.browseId || '').startsWith('UC'))
-        ?.navigationEndpoint?.browseEndpoint?.browseId || '';
 
       // Pilih run artis yang benar dari kolom kedua, bukan asal gabung semua teks
       // (yang bisa berisi "Artist • plays" tergabung tanpa makna). Prioritaskan run
