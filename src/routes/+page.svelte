@@ -17,16 +17,8 @@
   let _collection = [];
   let _loadingId = null;
   let _artists = [];
-  let _popularArtists = [];
   let _artistsLoading = true;
-  let _popularLoading = true;
   let _activeMood = 0;
-  let _curatedPool = [];
-
-  const _artistNames = [
-    'Denny Caknan', 'Tulus', 'Raisa', 'Yura Yunita', 'Mahalini',
-    'Rizky Febian', 'NIKI', 'Rich Brian', 'Weird Genius'
-  ];
 
   const _moods = [
     { label: 'Viral', query: 'Lagu Indonesia Viral Tiktok 2026' },
@@ -65,7 +57,7 @@
     return (item.artistId || item.author || item.title || '').toLowerCase();
   }
 
-  // "Artis Top" diambil dari artistId lagu yang benar-benar sedang tampil di
+  // "Artis" diambil dari artistId lagu yang benar-benar sedang tampil di
   // feed/mood aktif (_ds) — bukan daftar tebakan statis — jadi selalu relevan
   // dengan apa yang lagi direkomendasikan ke user saat itu.
   async function _loadArtistsTop() {
@@ -148,32 +140,6 @@
     }
   }
 
-  function _pickPopularSlice() {
-    _popularArtists = _shuffle(_curatedPool).slice(0, 10);
-  }
-
-  async function _fetchPopularArtists() {
-    // Query tiap nama artis SECARA TERPISAH (grup unik per nama) supaya
-    // request paralel ini tidak saling abort (lihat catatan di _g9 soal
-    // "abort the previous query in the same group"), lalu digabung & dedupe.
-    // Sebelumnya semua nama digabung jadi satu string query, yang membuat
-    // YouTube Music mencarinya sebagai satu kalimat utuh dan sering
-    // menghasilkan sedikit/nol artis.
-    const results = await Promise.all(
-      _artistNames.map(name =>
-        _g9(name, `_home_artist_${name}`).catch(() => ({ artists: [] }))
-      )
-    );
-    const seen = new Set();
-    const merged = [];
-    for (const r of results) {
-      for (const a of (r.artists || [])) {
-        if (a.id && !seen.has(a.id)) { seen.add(a.id); merged.push(a); }
-      }
-    }
-    return merged;
-  }
-
   async function _pickMood(i) {
     if (_activeMood === i) return;
     _activeMood = i;
@@ -188,7 +154,6 @@
     try {
       await _loadFeed(_activeMood);
       await _loadArtistsTop();
-      if (_curatedPool.length) _pickPopularSlice();
       _saveCache();
     } finally {
       _refreshing = false;
@@ -198,7 +163,7 @@
   function _saveCache() {
     _homeCache = {
       ds: _ds, collection: _collection, activeMood: _activeMood,
-      artists: _artists, popularArtists: _popularArtists, curatedPool: _curatedPool
+      artists: _artists
     };
   }
 
@@ -208,27 +173,13 @@
       _collection = _homeCache.collection;
       _activeMood = _homeCache.activeMood;
       _artists = _homeCache.artists;
-      _popularArtists = _homeCache.popularArtists;
-      _curatedPool = _homeCache.curatedPool;
       _artistsLoading = false;
-      _popularLoading = false;
       _ld = false;
       return;
     }
 
     await _loadFeed(_activeMood);
-    const topPromise = _loadArtistsTop();
-    const popularPromise = (async () => {
-      try {
-        _curatedPool = await _fetchPopularArtists();
-        _pickPopularSlice();
-      } catch {
-        _curatedPool = []; _popularArtists = [];
-      } finally {
-        _popularLoading = false;
-      }
-    })();
-    await Promise.all([topPromise, popularPromise]);
+    await _loadArtistsTop();
     _saveCache();
   });
 
@@ -474,33 +425,6 @@
       </div>
     {/if}
 
-    {#if _popularLoading}
-      <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
-        {#each Array(6) as _}
-          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px">
-            <div class="skeleton" style="width:88px;height:88px;border-radius:50%"></div>
-            <div class="skeleton" style="height:9px;width:60px;border-radius:4px"></div>
-          </div>
-        {/each}
-      </div>
-    {:else if _popularArtists.length}
-      <div style="margin-bottom:24px">
-        <div class="section-title" style="margin-bottom:10px">
-          <span class="bar"></span>
-          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis Populer</span>
-        </div>
-        <div class="hscroll hide-scrollbar">
-          {#each _popularArtists as a, i}
-            <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
-              style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px;background:none;border:none;cursor:pointer;padding:0;animation-delay:{i*30}ms">
-              <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
-              <span style="font-size:.72rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
     {#if _collection.length}
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
@@ -527,9 +451,9 @@
     {#if _artistsLoading}
       <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
         {#each Array(6) as _}
-          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px">
-            <div class="skeleton" style="width:64px;height:64px;border-radius:50%"></div>
-            <div class="skeleton" style="height:8px;width:50px;border-radius:4px"></div>
+          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px">
+            <div class="skeleton" style="width:88px;height:88px;border-radius:50%"></div>
+            <div class="skeleton" style="height:9px;width:60px;border-radius:4px"></div>
           </div>
         {/each}
       </div>
@@ -537,14 +461,14 @@
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
-          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis Top</span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis</span>
         </div>
         <div class="hscroll hide-scrollbar">
-          {#each _artists as a}
-            <button on:click={() => goto(`/artist/${a.id}`)}
-              style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;background:none;border:none;cursor:pointer;padding:0">
-              <img src={a.cover} alt={a.title} style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
-              <span style="font-size:.66rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
+          {#each _artists as a, i}
+            <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
+              style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px;background:none;border:none;cursor:pointer;padding:0;animation-delay:{i*30}ms">
+              <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
+              <span style="font-size:.72rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
             </button>
           {/each}
         </div>
