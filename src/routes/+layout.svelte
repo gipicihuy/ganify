@@ -4,7 +4,7 @@
   import { goto, afterNavigate } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
-  import { _getStreamUrl, _getLyrics } from '$lib/api.js';
+  import { _getStreamUrl, _getLyrics, _getSongInfo } from '$lib/api.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist } from '$lib/playlist.js';
   import { onDestroy, onMount, tick } from 'svelte';
 
@@ -62,6 +62,37 @@
   let _lyricsLoading = false;
   let _lyricsTrackId = null;
   let _lyricsWrapEl = null;
+
+  // "Lagu Serupa" pakai data queue/up-next dari /api/song (endpoint `next`
+  // YT Music yang sama persis dipakai buat radio/mix otomatis) — bukan
+  // search query bikinan. Ini sumber yang paling akurat karena YT Music
+  // sendiri yang mencampur lagu dari artis yang sama + artis relevan lain,
+  // dan endpoint ini sudah terbukti jalan (dipakai fitur lain di app ini).
+  let _similar = [];
+  let _similarLoading = false;
+  let _similarTrackId = null;
+  let _similarLoadingId = null;
+
+  async function _loadSimilar(track) {
+    _similarLoading = true;
+    try {
+      const info = await _getSongInfo(track.videoId);
+      const q = (info?.queue || []).filter(s => s.videoId && s.videoId !== track.videoId);
+      _similar = q.slice(0, 15);
+    } catch {
+      _similar = [];
+    } finally {
+      _similarLoading = false;
+    }
+  }
+
+  async function _playSimilar(item, idx) {
+    _similarLoadingId = item.videoId;
+    _p1k.set(_similar);
+    _x9a.set(idx);
+    _q8z.set(item);
+    setTimeout(() => { _similarLoadingId = null; }, 3000);
+  }
 
   async function _loadLyrics(track) {
     if (!track) return;
@@ -343,6 +374,8 @@
       _loadAndPlay($_q8z);
       _lyricsTrackId = $_q8z.videoId;
       _loadLyrics($_q8z);
+      _similarTrackId = $_q8z.videoId;
+      _loadSimilar($_q8z);
     }
   });
 
@@ -360,6 +393,8 @@
     _showLyrics.set(false);
     _lyricsTrackId = $_q8z.videoId;
     _loadLyrics($_q8z);
+    _similarTrackId = $_q8z.videoId;
+    _loadSimilar($_q8z);
     addRecentlyPlayed($_q8z);
     _recentlyPlayed.set(
       (() => { try { return JSON.parse(localStorage.getItem('_msc_rp') || '[]'); } catch { return []; } })()
@@ -715,8 +750,8 @@
     </div>
   </div>
 
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;gap:24px;overflow:hidden">
-    {#if !$_showLyrics}
+  <div class="hide-scrollbar" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:0 24px;overflow-y:auto;overflow-x:hidden">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:24px;width:100%;margin:auto 0;padding:24px 0">    {#if !$_showLyrics}
     <div style="position:relative;width:min(300px,78vw);height:min(300px,78vw)">
       {#if _loading}
         <img src={$_q8z.thumbnail} alt="" style="width:100%;height:100%;border-radius:20px;object-fit:cover;display:block;border:2px solid rgba(255,255,255,.1);opacity:.4" />
@@ -834,6 +869,74 @@
         {/if}
       </button>
     </div>
+    </div>
+
+    {#if !$_showLyrics}
+      <div style="width:100%;padding-bottom:28px">
+        <div class="section-title" style="margin-bottom:10px">
+          <span class="bar"></span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Lagu Serupa</span>
+        </div>
+
+        {#if _similarTrackId !== $_q8z.videoId || _similarLoading}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            {#each Array(4) as _}
+              <div style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center">
+                <div class="skeleton" style="width:52px;height:52px;border-radius:8px;flex-shrink:0"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                  <div class="skeleton" style="height:11px;width:70%;border-radius:6px"></div>
+                  <div class="skeleton" style="height:9px;width:40%;border-radius:6px"></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else if !_similar.length}
+          <p style="font-size:.78rem;color:rgba(245,245,245,.35);text-align:center;padding:16px 0">Belum ada rekomendasi lagu serupa</p>
+        {:else}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            {#each _similar as item, i}
+              <div class="animate-card-up"
+                style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(i,10)*30}ms;
+                  {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
+
+                <button on:click={() => _playSimilar(item, i)}
+                  style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;background:none;border:none;cursor:pointer;text-align:left;padding:0">
+                  <div style="position:relative;flex-shrink:0">
+                    <img src={item.thumbnail} alt={item.title}
+                      style="width:52px;height:52px;border-radius:8px;object-fit:cover;display:block" loading="lazy" />
+                    {#if _similarLoadingId === item.videoId}
+                      <div style="position:absolute;inset:0;border-radius:8px;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
+                        <div class="mini-spin"></div>
+                      </div>
+                    {/if}
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <p style="font-size:.83rem;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                      color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">
+                      {item.title}
+                    </p>
+                    {#if item.author}
+                      <p style="font-size:.7rem;font-weight:500;color:rgba(255,255,255,.4);margin:0;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                        {item.author}
+                      </p>
+                    {/if}
+                  </div>
+                </button>
+
+                <button on:click={e => { e.stopPropagation(); _openMenuSheet(item); }}
+                  style="width:28px;height:28px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                    background:transparent;border:none;cursor:pointer;color:rgba(245,245,245,.3);transition:all .15s"
+                  onmouseenter="this.style.background='rgba(255,255,255,.1)';this.style.color='rgba(255,255,255,.7)'"
+                  onmouseleave="this.style.background='transparent';this.style.color='rgba(245,245,245,.3)'">
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
 </div>
 {/if}
@@ -1042,6 +1145,7 @@
 
   .player-spin { width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.15);border-top-color:#FFFFFF;animation:_sp .7s linear infinite; }
   .np-spin { width:52px;height:52px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#FFFFFF;animation:_sp .8s linear infinite; }
+  .mini-spin { width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,.2);border-top-color:#FFFFFF;animation:_sp .7s linear infinite; }
   .btn-spin { width:14px;height:14px;border-radius:50%;border:2px solid rgba(20,20,20,.3);border-top-color:#141414;animation:_sp .6s linear infinite; }
   .btn-spin-lg { width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(20,20,20,.3);border-top-color:#141414;animation:_sp .6s linear infinite; }
 
