@@ -90,7 +90,12 @@ export async function GET({ url }) {
       description = data?.microformat?.microformatDataRenderer?.description || '';
       thumbnails = data?.microformat?.microformatDataRenderer?.thumbnail?.thumbnails || [];
 
-      const h = data?.header?.musicDetailHeaderRenderer || {};
+      // YT Music tidak selalu memakai musicDetailHeaderRenderer untuk header
+      // album — kadang musicImmersiveHeaderRenderer atau musicResponsiveHeaderRenderer,
+      // sama seperti endpoint /api/artist. Kalau cuma cek satu key, h jadi {}
+      // dan nama artis album gagal ke-extract sama sekali (jatuh ke "Unknown Artist").
+      const h = data?.header?.musicDetailHeaderRenderer || data?.header?.musicImmersiveHeaderRenderer ||
+        data?.header?.musicResponsiveHeaderRenderer || data?.header?.musicVisualHeaderRenderer || {};
       let headerThumbnails = h.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails || h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
       if (thumbnails.length === 0 && headerThumbnails.length > 0) thumbnails = headerThumbnails;
 
@@ -103,9 +108,41 @@ export async function GET({ url }) {
 
       let albumArtist = getRunsText(h.subtitle?.runs || []);
       if (albumArtist.includes(' • ')) {
-        albumArtist = albumArtist.split(' • ').find(x => !['Album', 'Single', 'EP', 'Playlist', '2023', '2024', '2022', '2021', '2020', '2025', '2026'].includes(x.trim())) || albumArtist;
+        albumArtist = albumArtist.split(' • ').find(x => {
+          const t = x.trim();
+          return !['Album', 'Single', 'EP', 'Playlist'].includes(t) && !/^\d{4}$/.test(t);
+        }) || albumArtist;
       }
-      if (!albumArtist) { const mat = title.match(/Album by (.*)$/); if (mat) albumArtist = mat[1]; }
+      // Fallback lain: strapline (dipakai musicImmersiveHeaderRenderer untuk nama
+      // pembuat/artist), lalu terakhir baru coba tebak dari judul "Album/Single/EP by X".
+      if (!albumArtist) albumArtist = getRunsText(h.straplineTextOne?.runs || []);
+      if (!albumArtist) {
+        const mat = title.match(/(?:Album|Single|EP)\s+by\s+(.+)$/i);
+        if (mat) albumArtist = mat[1].trim();
+      }
+      const albumArtistId = (h.subtitle?.runs || h.straplineTextOne?.runs || [])
+        .find(r => (r?.navigationEndpoint?.browseEndpoint?.browseId || '').startsWith('UC'))
+        ?.navigationEndpoint?.browseEndpoint?.browseId || '';
+
+      // Pilih run artis yang benar dari kolom kedua, bukan asal gabung semua teks
+      // (yang bisa berisi "Artist • plays" tergabung tanpa makna). Prioritaskan run
+      // yang link-nya ke channel artis (browseId diawali "UC"); kalau tidak ada,
+      // ambil run bermakna pertama yang bukan separator/durasi.
+      function pickArtist(runs) {
+        if (!Array.isArray(runs) || runs.length === 0) return { artist: '', artistId: '' };
+        for (const run of runs) {
+          const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
+          if (browseId.startsWith('UC')) return { artist: run.text || '', artistId: browseId };
+        }
+        const durationLike = /^\d+:\d{2}(:\d{2})?$/;
+        for (const run of runs) {
+          const txt = (run.text || '').trim();
+          if (!txt || txt === '•' || txt === '·' || txt === '-') continue;
+          if (durationLike.test(txt)) continue;
+          return { artist: txt, artistId: run?.navigationEndpoint?.browseEndpoint?.browseId || '' };
+        }
+        return { artist: '', artistId: '' };
+      }
 
       for (const item of items) {
         if (item.musicResponsiveListItemRenderer) {
@@ -114,9 +151,8 @@ export async function GET({ url }) {
           if (!videoId) continue;
           const songTitle = getRunsText(i.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []);
           const artistRuns = i.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
-          let artist = getRunsText(artistRuns);
-          if (!artist) artist = albumArtist || 'Unknown Artist';
-          const artistId = artistRuns[0]?.navigationEndpoint?.browseEndpoint?.browseId || '';
+          let { artist, artistId } = pickArtist(artistRuns);
+          if (!artist) { artist = albumArtist || 'Unknown Artist'; artistId = artistId || albumArtistId; }
           const duration = durationColon(getRunsText(i.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs || []));
           const rawThumb = i.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
           const thumb = transformThumbs(rawThumb, videoId);
