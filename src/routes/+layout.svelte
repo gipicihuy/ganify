@@ -1010,19 +1010,14 @@
             <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:4px 0 0">{$_showMenu.author}</p>
           {/if}
         </div>
+        <button on:click={() => _shareTrack($_showMenu)} aria-label="Bagikan Lagu"
+          style="width:36px;height:36px;flex-shrink:0;margin-top:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);cursor:pointer">
+          <svg width="16" height="16" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
       </div>
 
       <div style="padding:14px 20px 0">
-        <button on:click={() => _shareTrack($_showMenu)}
-          style="width:100%;display:flex;align-items:center;gap:12px;padding:0 0 14px;
-            background:none;border:none;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;text-align:left;margin-bottom:14px">
-          <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
-            background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-            display:flex;align-items:center;justify-content:center">
-            <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.04 9.81C6.5 9.31 5.79 9 5 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
-          </div>
-          <span style="font-size:.82rem;font-weight:700;color:rgba(245,245,245,.8)">Bagikan Lagu</span>
-        </button>
         {#if $_showMenu.videoId === $_q8z?.videoId}
           <button on:click={() => { _closeMenuSheet(); _showNP.set(true); if (!$_showLyrics) _toggleLyrics(); }}
             style="width:100%;display:flex;align-items:center;gap:12px;padding:0 0 14px;
