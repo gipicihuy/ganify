@@ -7,7 +7,7 @@
 <script>
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _g9 } from '$lib/api.js';
+  import { _g9, _getArtist } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
   import { getPlaylists } from '$lib/playlist.js';
 
@@ -16,11 +16,12 @@
   let _refreshing = false;
   let _collection = [];
   let _loadingId = null;
-  let _artistsAll = [];
   let _artists = [];
   let _popularArtists = [];
   let _artistsLoading = true;
+  let _popularLoading = true;
   let _activeMood = 0;
+  let _curatedPool = [];
 
   const _artistNames = [
     'Denny Caknan', 'Tulus', 'Raisa', 'Yura Yunita', 'Mahalini',
@@ -62,6 +63,34 @@
 
   function _artistKey(item) {
     return (item.artistId || item.author || item.title || '').toLowerCase();
+  }
+
+  // "Artis Top" diambil dari artistId lagu yang benar-benar sedang tampil di
+  // feed/mood aktif (_ds) — bukan daftar tebakan statis — jadi selalu relevan
+  // dengan apa yang lagi direkomendasikan ke user saat itu.
+  async function _loadArtistsTop() {
+    _artistsLoading = true;
+    try {
+      const seen = new Set();
+      const ids = [];
+      for (const item of _ds) {
+        if (item.artistId && !seen.has(item.artistId)) {
+          seen.add(item.artistId);
+          ids.push(item.artistId);
+        }
+        if (ids.length >= 10) break;
+      }
+      if (!ids.length) { _artists = []; return; }
+      const results = await Promise.all(ids.map(id => _getArtist(id).catch(() => null)));
+      _artists = results
+        .filter(Boolean)
+        .map(r => ({ id: r.artistId, title: r.name, cover: r.cover }))
+        .filter(a => a.id && a.title);
+    } catch {
+      _artists = [];
+    } finally {
+      _artistsLoading = false;
+    }
   }
 
   async function _loadFeed(moodIdx) {
@@ -119,12 +148,8 @@
     }
   }
 
-  function _pickArtistGroups() {
-    const shuffled = _shuffle(_artistsAll);
-    _artists = shuffled.slice(0, 10);
-    _popularArtists = shuffled.length > 10
-      ? shuffled.slice(10, 20)
-      : _shuffle(_artistsAll).slice(0, 10);
+  function _pickPopularSlice() {
+    _popularArtists = _shuffle(_curatedPool).slice(0, 10);
   }
 
   async function _fetchPopularArtists() {
@@ -153,6 +178,7 @@
     if (_activeMood === i) return;
     _activeMood = i;
     await _loadFeed(i);
+    await _loadArtistsTop();
     _saveCache();
   }
 
@@ -161,7 +187,8 @@
     _refreshing = true;
     try {
       await _loadFeed(_activeMood);
-      if (_artistsAll.length) _pickArtistGroups();
+      await _loadArtistsTop();
+      if (_curatedPool.length) _pickPopularSlice();
       _saveCache();
     } finally {
       _refreshing = false;
@@ -170,8 +197,8 @@
 
   function _saveCache() {
     _homeCache = {
-      ds: _ds, collection: _collection,
-      activeMood: _activeMood, artistsAll: _artistsAll, artists: _artists, popularArtists: _popularArtists
+      ds: _ds, collection: _collection, activeMood: _activeMood,
+      artists: _artists, popularArtists: _popularArtists, curatedPool: _curatedPool
     };
   }
 
@@ -180,23 +207,28 @@
       _ds = _homeCache.ds;
       _collection = _homeCache.collection;
       _activeMood = _homeCache.activeMood;
-      _artistsAll = _homeCache.artistsAll;
       _artists = _homeCache.artists;
       _popularArtists = _homeCache.popularArtists;
+      _curatedPool = _homeCache.curatedPool;
       _artistsLoading = false;
+      _popularLoading = false;
       _ld = false;
       return;
     }
 
     await _loadFeed(_activeMood);
-    try {
-      _artistsAll = await _fetchPopularArtists();
-      _pickArtistGroups();
-    } catch {
-      _artistsAll = []; _artists = []; _popularArtists = [];
-    } finally {
-      _artistsLoading = false;
-    }
+    const topPromise = _loadArtistsTop();
+    const popularPromise = (async () => {
+      try {
+        _curatedPool = await _fetchPopularArtists();
+        _pickPopularSlice();
+      } catch {
+        _curatedPool = []; _popularArtists = [];
+      } finally {
+        _popularLoading = false;
+      }
+    })();
+    await Promise.all([topPromise, popularPromise]);
     _saveCache();
   });
 
@@ -442,7 +474,16 @@
       </div>
     {/if}
 
-    {#if _popularArtists.length}
+    {#if _popularLoading}
+      <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
+        {#each Array(6) as _}
+          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px">
+            <div class="skeleton" style="width:88px;height:88px;border-radius:50%"></div>
+            <div class="skeleton" style="height:9px;width:60px;border-radius:4px"></div>
+          </div>
+        {/each}
+      </div>
+    {:else if _popularArtists.length}
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
