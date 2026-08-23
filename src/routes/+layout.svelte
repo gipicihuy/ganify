@@ -2,10 +2,10 @@
   import '../app.css';
   import { page } from '$app/stores';
   import { goto, afterNavigate } from '$app/navigation';
-  import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics } from '$lib/store.js';
+  import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics, _likedSongs } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
   import { _getStreamUrl, _getLyrics, _getSongInfo } from '$lib/api.js';
-  import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist } from '$lib/playlist.js';
+  import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong } from '$lib/playlist.js';
   import { onDestroy, onMount, tick } from 'svelte';
 
   $: _rt = $page.url.pathname;
@@ -358,6 +358,7 @@
   onMount(() => {
     _mounted = true;
     _playlists.set(getPlaylists());
+    _likedSongs.set(getLikedSongs());
     if ($_q8z && $_q8z !== _prev) {
       _prev = $_q8z;
       _elapsed = 0;
@@ -378,6 +379,14 @@
       _loadSimilar($_q8z);
     }
   });
+
+  function _toggleLike(track) {
+    if (!track) return;
+    const { list } = toggleLikeSong(track);
+    _likedSongs.set(list);
+  }
+
+  $: _isLiked = $_q8z ? $_likedSongs.some(t => t.videoId === $_q8z.videoId) : false;
 
   $: if (_mounted && $_q8z && $_q8z !== _prev) {
     _prev = $_q8z;
@@ -742,6 +751,16 @@
       <p style="font-size:.68rem;font-weight:600;color:rgba(245,245,245,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px auto 0">{$_q8z.title}</p>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0">
+      <button on:click={() => _toggleLike($_q8z)} aria-label={_isLiked ? 'Hapus dari Lagu Disukai' : 'Suka lagu ini'}
+        style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+          background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.7);cursor:pointer;color:#FFFFFF;transition:transform .12s"
+        onmousedown="this.style.transform='scale(.88)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
+        {#if _isLiked}
+          <svg width="18" height="18" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        {:else}
+          <svg width="18" height="18" fill="none" stroke="#FFFFFF" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        {/if}
+      </button>
       <button on:click={() => _openMenuSheet($_q8z)}
         style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
           background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);cursor:pointer;color:rgba(245,245,245,.5)">
