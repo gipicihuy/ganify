@@ -1,6 +1,5 @@
 <script>
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _showMenu, _showAddPl, _playlists, _recentlyPlayed } from '$lib/store.js';
   import { getRecentlyPlayed, getPlaylists, createPlaylist, deletePlaylist, removeRecentlyPlayed } from '$lib/playlist.js';
 
@@ -164,14 +163,7 @@
                   color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
               </button>
               {#if item.author}
-                {#if item.artistId}
-                  <button on:click={() => goto(`/artist/${item.artistId}`)}
-                    style="display:block;width:100%;background:none;border:none;cursor:pointer;padding:0;
-                    font-size:.7rem;color:rgba(255,255,255,.4);margin:0;text-align:left;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</button>
-                {:else}
-                  <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
-                {/if}
+                <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
               {/if}
             </div>
             <button on:click={e => _openMenu(e, { ...item, _ctx: 'recent' })}
@@ -358,14 +350,7 @@
                     color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
                 </button>
                 {#if item.author}
-                  {#if item.artistId}
-                    <button on:click={() => goto(`/artist/${item.artistId}`)}
-                      style="display:block;width:100%;background:none;border:none;cursor:pointer;padding:0;
-                      font-size:.7rem;color:rgba(255,255,255,.4);margin:0;text-align:left;
-                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</button>
-                  {:else}
-                    <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
-                  {/if}
+                  <p style="font-size:.7rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
                 {/if}
               </div>
               <button on:click={() => _removeFromPl(item.videoId)}
