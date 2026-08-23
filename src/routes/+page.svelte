@@ -20,6 +20,16 @@
   let _artists = [];
   let _artistsLoading = true;
   let _activeMood = 0;
+  let _trending = [];
+  let _trendingLoading = true;
+
+  // Query generik ala "trending now" YT Music — bukan berbasis mood user,
+  // jadi kelihatan seperti apa yang lagi rame diputar banyak orang.
+  const _trendingQueries = [
+    'Top Trending Songs 2026',
+    'Lagu Indonesia Trending Sekarang',
+    'Global Top Hits 2026'
+  ];
 
   const _moods = [
     { label: 'Viral', query: 'Lagu Indonesia Viral Tiktok 2026' },
@@ -83,6 +93,29 @@
       _artists = [];
     } finally {
       _artistsLoading = false;
+    }
+  }
+
+  async function _loadTrending() {
+    _trendingLoading = true;
+    try {
+      const results = await Promise.all(
+        _trendingQueries.map(q => _g9(q, '_home_trending').catch(() => null))
+      );
+      const seen = new Set();
+      const pool = [];
+      for (const r of results) {
+        for (const s of (r?.songs || [])) {
+          if (!s.videoId || seen.has(s.videoId)) continue;
+          seen.add(s.videoId);
+          pool.push(s);
+        }
+      }
+      _trending = _shuffle(pool).slice(0, 12);
+    } catch {
+      _trending = [];
+    } finally {
+      _trendingLoading = false;
     }
   }
 
@@ -153,8 +186,10 @@
     if (_refreshing || _ld) return;
     _refreshing = true;
     try {
-      await _loadFeed(_activeMood);
-      await _loadArtistsTop();
+      await Promise.all([
+        _loadFeed(_activeMood).then(_loadArtistsTop),
+        _loadTrending()
+      ]);
       _saveCache();
     } finally {
       _refreshing = false;
@@ -164,7 +199,7 @@
   function _saveCache() {
     _homeCache = {
       ds: _ds, collection: _collection, activeMood: _activeMood,
-      artists: _artists
+      artists: _artists, trending: _trending
     };
   }
 
@@ -174,15 +209,19 @@
       _collection = _homeCache.collection;
       _activeMood = _homeCache.activeMood;
       _artists = _homeCache.artists;
+      _trending = _homeCache.trending || [];
       _artistsLoading = false;
+      _trendingLoading = false;
       _ld = false;
       await tick();
       window.scrollTo(0, _homeScrollY);
       return;
     }
 
-    await _loadFeed(_activeMood);
-    await _loadArtistsTop();
+    await Promise.all([
+      _loadFeed(_activeMood).then(_loadArtistsTop),
+      _loadTrending()
+    ]);
     _saveCache();
     await tick();
     window.scrollTo(0, _homeScrollY);
@@ -195,6 +234,14 @@
   async function _pl(item, idx) {
     _loadingId = item.videoId;
     _p1k.set(_ds);
+    _x9a.set(idx);
+    _q8z.set(item);
+    setTimeout(() => { _loadingId = null; }, 3000);
+  }
+
+  async function _plTrending(item, idx) {
+    _loadingId = item.videoId;
+    _p1k.set(_trending);
     _x9a.set(idx);
     _q8z.set(item);
     setTimeout(() => { _loadingId = null; }, 3000);
@@ -300,6 +347,11 @@
   </div>
 
   {#if _ld}
+    <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
+      {#each Array(4) as _}
+        <div class="skeleton" style="width:130px;height:130px;border-radius:14px;flex-shrink:0"></div>
+      {/each}
+    </div>
     <div class="skeleton" style="width:100%;aspect-ratio:16/10;border-radius:20px;margin-bottom:22px"></div>
     <div class="quick-grid" style="margin-bottom:22px">
       {#each Array(4) as _}
@@ -335,6 +387,45 @@
     </div>
 
   {:else}
+
+    {#if _trending.length}
+      <div style="margin-bottom:24px">
+        <div class="section-title" style="margin-bottom:10px">
+          <span class="bar"></span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Lagi Rame Diputar</span>
+        </div>
+        <div class="hscroll hide-scrollbar">
+          {#each _trending as item, i}
+            <div class="animate-card-up"
+              style="flex-shrink:0;width:130px;cursor:pointer;animation-delay:{i*30}ms"
+              role="button" tabindex="0"
+              on:click={() => _plTrending(item, i)}
+              on:keydown={e => e.key === 'Enter' && _plTrending(item, i)}>
+              <div style="position:relative">
+                <img src={item.thumbnail} alt={item.title} style="width:130px;height:130px;border-radius:14px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+                {#if _loadingId === item.videoId}
+                  <div style="position:absolute;inset:0;border-radius:14px;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
+                    <div class="mini-spin"></div>
+                  </div>
+                {:else if $_q8z?.videoId === item.videoId}
+                  <div style="position:absolute;top:8px;right:8px;background:rgba(10,10,10,.55);border-radius:99px;padding:5px 8px;display:flex;align-items:flex-end;gap:2px;height:12px">
+                    <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>
+                    <div class="eq-bar-nm animate-eq-b" style="height:10px"></div>
+                    <div class="eq-bar-nm animate-eq-c" style="height:5px"></div>
+                  </div>
+                {/if}
+              </div>
+              <p style="font-size:.74rem;font-weight:700;line-height:1.25;margin:0 0 2px;
+                display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+                color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'}">{item.title}</p>
+              {#if item.author}
+                <p style="font-size:.65rem;font-weight:600;color:rgba(245,245,245,.55);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     {#if _hero}
       {@const item = _hero.item}{@const idx = _hero.idx}
