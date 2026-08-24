@@ -1001,20 +1001,22 @@
             <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:4px 0 0">{$_showMenu.author}</p>
           {/if}
         </div>
-        <button on:click={() => _toggleLike($_showMenu)} aria-label={_isMenuLiked ? 'Hapus dari Lagu Disukai' : 'Suka lagu ini'}
-          style="width:36px;height:36px;flex-shrink:0;margin-top:8px;display:flex;align-items:center;justify-content:center;
-            background:none;border:none;cursor:pointer">
-          {#if _isMenuLiked}
-            <svg width="18" height="18" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          {:else}
-            <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          {/if}
-        </button>
-        <button on:click={() => _shareTrack($_showMenu)} aria-label="Bagikan Lagu"
-          style="width:36px;height:36px;flex-shrink:0;margin-top:8px;display:flex;align-items:center;justify-content:center;
-            background:none;border:none;cursor:pointer">
-          <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 512 512"><path d="M503.691 189.836L327.687 37.851C312.281 24.546 288 35.347 288 56.015v80.053C127.371 137.907 0 170.1 0 322.326c0 61.441 39.581 122.309 83.333 154.132 13.653 9.931 33.111-2.533 28.077-18.631C66.066 312.814 132.917 274.316 288 272.085V360c0 20.7 24.3 31.453 39.687 18.164l176.004-152c11.071-9.562 11.086-26.753 0-36.328z"/></svg>
-        </button>
+        <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;margin-top:8px">
+          <button on:click={() => _toggleLike($_showMenu)} aria-label={_isMenuLiked ? 'Hapus dari Lagu Disukai' : 'Suka lagu ini'}
+            style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+              background:none;border:none;cursor:pointer">
+            {#if _isMenuLiked}
+              <svg width="18" height="18" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            {:else}
+              <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            {/if}
+          </button>
+          <button on:click={() => _shareTrack($_showMenu)} aria-label="Bagikan Lagu"
+            style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+              background:none;border:none;cursor:pointer">
+            <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 512 512"><path d="M503.691 189.836L327.687 37.851C312.281 24.546 288 35.347 288 56.015v80.053C127.371 137.907 0 170.1 0 322.326c0 61.441 39.581 122.309 83.333 154.132 13.653 9.931 33.111-2.533 28.077-18.631C66.066 312.814 132.917 274.316 288 272.085V360c0 20.7 24.3 31.453 39.687 18.164l176.004-152c11.071-9.562 11.086-26.753 0-36.328z"/></svg>
+          </button>
+        </div>
       </div>
 
       <div style="padding:14px 20px 0">
