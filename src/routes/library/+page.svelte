@@ -12,6 +12,21 @@
   let _openedPlaylist = null;
   let _showRename = false;
   let _renameName = '';
+  let _now = Date.now();
+
+  const _WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function _timeAgo(ts) {
+    if (!ts) return '';
+    const diff = _now - ts;
+    if (diff < 0) return 'Baru saja';
+    const min = 60 * 1000, hr = 60 * min, day = 24 * hr;
+    if (diff < min) return 'Baru saja';
+    if (diff < hr) { const n = Math.floor(diff / min); return `${n} menit yang lalu`; }
+    if (diff < day) { const n = Math.floor(diff / hr); return `${n} jam yang lalu`; }
+    const n = Math.floor(diff / day);
+    return `${n} hari yang lalu`;
+  }
 
    function _plCover(tracks) {
     const t = tracks || [];
@@ -36,6 +51,8 @@
     _recentlyPlayed.set(getRecentlyPlayed());
     _playlists.set(getPlaylists());
     _likedSongs.set(getLikedSongs());
+    const t = setInterval(() => { _now = Date.now(); }, 60000);
+    return () => clearInterval(t);
   });
 
   function _doUnlike(track) {
@@ -107,12 +124,20 @@
   $: _pls = $_playlists;
   $: _liked = $_likedSongs;
 
+  // "Baru Disukai" cuma nampilin aktivitas like dalam 7 hari terakhir, beda dari
+  // tab "Disukai" yang nyimpen semua lagu yang pernah di-like selamanya.
+  $: _recentlyLiked = _liked
+    .filter(t => t.likedAt && (_now - t.likedAt) <= _WEEK_MS)
+    .sort((a, b) => (b.likedAt || 0) - (a.likedAt || 0));
+
   $: _all = (() => {
     const map = new Map();
+    // Riwayat putar tidak pernah expired di sini.
     _rp.forEach(t => {
       map.set(t.videoId, { ...t, _wasRecent: true, _wasLiked: false, _ts: t.playedAt || 0 });
     });
-    _liked.forEach(t => {
+    // Hanya aktivitas like 7 hari terakhir yang ikut masuk ke "Semua".
+    _recentlyLiked.forEach(t => {
       const existing = map.get(t.videoId);
       if (existing) {
         existing._wasLiked = true;
@@ -196,8 +221,9 @@
       {:else}
         <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
           {#each _all as item, i}
-            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+            <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
+              <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item._ts)}</span>
               <button on:click={() => _pl(item, _all, i)}
                 style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
                 <div style="position:relative">
@@ -256,8 +282,9 @@
     {:else}
       <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
         {#each _rp as item, i}
-          <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+          <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
             {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
+            <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item.playedAt)}</span>
             <button on:click={() => _pl(item, _rp, i)}
               style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
               <div style="position:relative">
@@ -298,19 +325,20 @@
     {/if}
 
     {:else}
-      {#if _liked.length === 0}
+      {#if _recentlyLiked.length === 0}
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
           <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
             <svg width="26" height="26" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
           </div>
-          <p style="color:rgba(245,245,245,.38);font-size:.84rem;text-align:center">Belum ada lagu disukai<br><span style="font-size:.74rem;color:rgba(245,245,245,.25)">Tap ikon hati di Now Playing buat nyimpen lagu</span></p>
+          <p style="color:rgba(245,245,245,.38);font-size:.84rem;text-align:center">Belum ada lagu yang baru disukai<br><span style="font-size:.74rem;color:rgba(245,245,245,.25)">Lagu yang disukai 7 hari terakhir muncul di sini</span></p>
         </div>
       {:else}
         <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
-          {#each _liked as item, i}
-            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+          {#each _recentlyLiked as item, i}
+            <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
-              <button on:click={() => _pl(item, _liked, i)}
+              <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item.likedAt)}</span>
+              <button on:click={() => _pl(item, _recentlyLiked, i)}
                 style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
                 <div style="position:relative">
                   <img src={item.thumbnail} alt={item.title}
@@ -327,7 +355,7 @@
                 </div>
               </button>
               <div style="flex:1;min-width:0">
-                <button on:click={() => _pl(item, _liked, i)}
+                <button on:click={() => _pl(item, _recentlyLiked, i)}
                   style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
                   <p style="font-size:.9rem;font-weight:700;line-height:1.35;
                     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
