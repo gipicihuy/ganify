@@ -22,6 +22,7 @@
   let _activeMood = 0;
   let _trending = [];
   let _trendingLoading = true;
+  let _mix = [];
 
   const _moods = [
     { label: 'Viral', query: 'Lagu Indonesia Viral Tiktok 2026' },
@@ -40,7 +41,6 @@
 
   $: _hero = _ds.length ? { item: _ds[0], idx: 0 } : null;
   $: _quick = _ds.slice(1, 5).map((item, i) => ({ item, idx: i + 1 }));
-  $: _rest = _ds.slice(5).map((item, i) => ({ item, idx: i + 5 }));
 
   function _shuffle(arr) {
     const a = arr.slice();
@@ -108,7 +108,7 @@
           pool.push(s);
         }
       }
-      return _shuffle(pool).slice(0, 12);
+      return _shuffle(pool);
     } catch {
       return [];
     }
@@ -119,9 +119,13 @@
     try {
       const home = await _getHome();
       const pool = (home?.songs || []).filter(s => s.videoId);
-      _trending = pool.length ? _shuffle(pool).slice(0, 12) : await _loadTrendingFallback();
+      const shuffled = pool.length ? _shuffle(pool) : await _loadTrendingFallback();
+      _trending = shuffled.slice(0, 12);
+      _mix = shuffled.slice(12, 42);
     } catch {
-      _trending = await _loadTrendingFallback();
+      const shuffled = await _loadTrendingFallback();
+      _trending = shuffled.slice(0, 12);
+      _mix = shuffled.slice(12, 42);
     } finally {
       _trendingLoading = false;
     }
@@ -216,7 +220,7 @@
   function _saveCache() {
     _homeCache = {
       ds: _ds, collection: _collection, activeMood: _activeMood,
-      artists: _artists, trending: _trending
+      artists: _artists, trending: _trending, mix: _mix
     };
   }
 
@@ -227,6 +231,7 @@
       _activeMood = _homeCache.activeMood;
       _artists = _homeCache.artists;
       _trending = _homeCache.trending || [];
+      _mix = _homeCache.mix || [];
       _artistsLoading = false;
       _trendingLoading = false;
       _ld = false;
@@ -259,6 +264,14 @@
   async function _plTrending(item, idx) {
     _loadingId = item.videoId;
     _p1k.set(_trending);
+    _x9a.set(idx);
+    _q8z.set(item);
+    setTimeout(() => { _loadingId = null; }, 3000);
+  }
+
+  async function _plMix(item, idx) {
+    _loadingId = item.videoId;
+    _p1k.set(_mix);
     _x9a.set(idx);
     _q8z.set(item);
     setTimeout(() => { _loadingId = null; }, 3000);
@@ -592,19 +605,19 @@
       </div>
     {/if}
 
-    {#if _rest.length}
+    {#if _mix.length}
       <div class="section-title" style="margin-bottom:10px">
         <span class="bar"></span>
         <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Campuran Untukmu</span>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:8px">
-        {#each _rest as { item, idx }, i}
+        {#each _mix as item, idx (item.videoId)}
           <div class="animate-card-up"
-            style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(i,10)*30}ms;
+            style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(idx,10)*30}ms;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
-            <button on:click={() => _pl(item, idx)}
+            <button on:click={() => _plMix(item, idx)}
               style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
               <div style="position:relative">
                 <img src={item.thumbnail} alt={item.title}
@@ -628,7 +641,7 @@
             </button>
 
             <div style="flex:1;min-width:0">
-              <button on:click={() => _pl(item, idx)}
+              <button on:click={() => _plMix(item, idx)}
                 style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
                 <p style="font-size:.9rem;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
                   color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">
