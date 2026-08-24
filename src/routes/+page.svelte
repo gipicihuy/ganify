@@ -92,7 +92,7 @@
   // request tanpa sesi login) — biar section tetap ada isinya, bukan hilang.
   const _trendingFallbackQueries = [
     'Top Trending Songs 2026',
-    'Lagu Indonesia Trending Sekarang',
+    'Lagu Viral 2026',
     'Global Top Hits 2026'
   ];
 
