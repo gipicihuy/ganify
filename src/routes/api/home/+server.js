@@ -79,16 +79,52 @@ function cleanTitle(title) {
     .trim();
 }
 
-async function fetchHome() {
+const CONTEXT = { client: { clientName: 'WEB_REMIX', clientVersion: '1.20240101.00.00', hl: 'id', gl: 'ID' } };
+
+async function browseRequest(body) {
   const r = await fetch('https://music.youtube.com/youtubei/v1/browse?prettyPrint=false', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': UA, 'Origin': 'https://music.youtube.com' },
-    body: JSON.stringify({
-      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20240101.00.00', hl: 'id', gl: 'ID' } },
-      browseId: 'FEmusic_home'
-    })
+    body: JSON.stringify(body)
   });
   return await r.json();
+}
+
+function findContinuationToken(data) {
+  const tokens = [];
+  findAllKeys(data, 'continuationCommand', tokens);
+  const token = tokens.find(t => t?.token)?.token;
+  return token || null;
+}
+
+// FEmusic_home dari YT Music dipaginate: satu request browse cuma balikin
+// beberapa shelf awal, sisanya (shelf lanjutan seperti "Mix untukmu",
+// "Charts", dst) baru muncul lewat continuation token. Kalau cuma ambil
+// halaman pertama, pool lagu unik yang didapat jadi tipis. Di sini kita
+// tarik beberapa halaman lanjutan (masih murni data resmi YT Music, bukan
+// hasil query/tebakan) biar pool-nya lebih tebal.
+async function fetchHome() {
+  const pages = [];
+  const first = await browseRequest({ context: CONTEXT, browseId: 'FEmusic_home' });
+  pages.push(first);
+
+  let token = findContinuationToken(first);
+  let hops = 0;
+  while (token && hops < 4) {
+    let next;
+    try {
+      next = await browseRequest({
+        context: CONTEXT,
+        continuation: token
+      });
+    } catch {
+      break;
+    }
+    pages.push(next);
+    token = findContinuationToken(next);
+    hops++;
+  }
+  return pages;
 }
 
 // Section-section di FEmusic_home dibungkus musicCarouselShelfRenderer, tiap
@@ -96,9 +132,10 @@ async function fetchHome() {
 // watchEndpoint utk lagu). Kita hanya ambil kartu yang punya videoId — itu
 // yang benar-benar representasi "lagu", sama seperti yang muncul sebagai
 // track-playable card di beranda YT Music asli.
-function extractHomeSongs(data) {
+function extractHomeSongs(pages) {
+  const list = Array.isArray(pages) ? pages : [pages];
   const sections = [];
-  findAllKeys(data, 'musicCarouselShelfRenderer', sections);
+  for (const data of list) findAllKeys(data, 'musicCarouselShelfRenderer', sections);
   const out = [];
   for (const section of sections) {
     const items = section?.contents || [];
