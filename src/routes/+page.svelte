@@ -119,13 +119,20 @@
     try {
       const home = await _getHome();
       const pool = (home?.songs || []).filter(s => s.videoId);
-      const shuffled = pool.length ? _shuffle(pool) : await _loadTrendingFallback();
-      _trending = shuffled.slice(0, 12);
-      _mix = shuffled.slice(12, 42);
+      if (pool.length) {
+        // `pool` sudah terurut dari yang paling sering muncul di berbagai
+        // shelf FEmusic_home (paling "rame"/didorong) ke yang paling jarang.
+        _trending = pool.slice(0, 12);
+        _mix = _shuffle(pool.slice(12));
+      } else {
+        const shuffled = await _loadTrendingFallback();
+        _trending = shuffled.slice(0, 12);
+        _mix = shuffled.slice(12);
+      }
     } catch {
       const shuffled = await _loadTrendingFallback();
       _trending = shuffled.slice(0, 12);
-      _mix = shuffled.slice(12, 42);
+      _mix = shuffled.slice(12);
     } finally {
       _trendingLoading = false;
     }

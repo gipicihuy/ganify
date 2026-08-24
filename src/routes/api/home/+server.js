@@ -128,16 +128,23 @@ function extractHomeSongs(data) {
   return out;
 }
 
-function dedupeBy(list, keyFn) {
-  const seen = new Set();
-  const out = [];
+function dedupeByFrequency(list, keyFn) {
+  const order = [];
+  const freq = new Map();
+  const first = new Map();
   for (const item of list) {
     const k = keyFn(item);
-    if (!k || seen.has(k)) continue;
-    seen.add(k);
-    out.push(item);
+    if (!k) continue;
+    freq.set(k, (freq.get(k) || 0) + 1);
+    if (!first.has(k)) { first.set(k, item); order.push(k); }
   }
-  return out;
+  // Semakin sering satu lagu muncul di berbagai shelf FEmusic_home (Quick
+  // picks, Mix, Trending, dst), semakin kuat sinyal itu lagi didorong/rame
+  // oleh YT Music sendiri — itu proxy paling jujur yang tersedia dari data
+  // asli, karena feed ini tidak menyertakan angka "sedang diputar X orang".
+  return order
+    .map(k => ({ ...first.get(k), _freq: freq.get(k) }))
+    .sort((a, b) => b._freq - a._freq);
 }
 
 const HOME_CACHE_TTL = 5 * 60 * 1000;
@@ -147,7 +154,7 @@ let _homeCacheTime = 0;
 async function performHome() {
   if (_homeCache && Date.now() - _homeCacheTime < HOME_CACHE_TTL) return _homeCache;
   const data = await fetchHome();
-  const songs = dedupeBy(extractHomeSongs(data), s => s.videoId);
+  const songs = dedupeByFrequency(extractHomeSongs(data), s => s.videoId);
   // Kalau YT Music menolak request anonim (butuh auth/session) atau format
   // respons berubah, `songs` akan kosong. Jangan cache kegagalan — biar
   // request berikutnya coba lagi, bukan ke-lock ke hasil kosong 5 menit.
