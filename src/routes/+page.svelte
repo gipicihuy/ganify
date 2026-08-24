@@ -114,7 +114,7 @@
     }
   }
 
-  async function _loadTrending() {
+  async function _loadTrending(attempt = 0) {
     _trendingLoading = true;
     try {
       const home = await _getHome();
@@ -124,6 +124,15 @@
       _trending = await _loadTrendingFallback();
     } finally {
       _trendingLoading = false;
+    }
+
+    // Feed utama (_getHome) kadang gagal/kosong di percobaan pertama (lihat
+    // catatan di atas _trendingFallbackQueries), dan sesekali fallback-nya
+    // juga ikut kena hiccup. Daripada section ini "hilang" sampai user
+    // pencet refresh manual, coba ulang sendiri beberapa kali dengan jeda.
+    if (!_trending.length && attempt < 2) {
+      await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
+      await _loadTrending(attempt + 1);
     }
   }
 
