@@ -4,6 +4,7 @@
   import { getRecentlyPlayed, getPlaylists, createPlaylist, deletePlaylist, removeRecentlyPlayed, getLikedSongs, toggleLikeSong } from '$lib/playlist.js';
 
   let _tab = 'recent';
+  let _subTab = 'semua';
   let _loadingId = null;
   let _showNewPl = false;
   let _newPlName = '';
@@ -105,6 +106,23 @@
   $: _rp = $_recentlyPlayed;
   $: _pls = $_playlists;
   $: _liked = $_likedSongs;
+
+  $: _all = (() => {
+    const map = new Map();
+    _rp.forEach(t => {
+      map.set(t.videoId, { ...t, _wasRecent: true, _wasLiked: false, _ts: t.playedAt || 0 });
+    });
+    _liked.forEach(t => {
+      const existing = map.get(t.videoId);
+      if (existing) {
+        existing._wasLiked = true;
+        existing._ts = Math.max(existing._ts, t.likedAt || 0);
+      } else {
+        map.set(t.videoId, { ...t, _wasRecent: false, _wasLiked: true, _ts: t.likedAt || 0 });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b._ts - a._ts);
+  })();
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:28px 16px 0">
@@ -121,7 +139,7 @@
           background:{_tab==='recent' ? 'rgba(255,255,255,.12)' : 'transparent'};
           color:{_tab==='recent' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
           font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s">
-        Terakhir Diputar
+        Riwayat
       </button>
       <button on:click={() => _tab='playlist'}
         style="flex:1;padding:9px 0;border-radius:99px;border:1.5px solid {_tab==='playlist' ? '#FFFFFF' : 'rgba(255,255,255,.15)'};
@@ -138,9 +156,96 @@
         Disukai
       </button>
     </div>
+
+    {#if _tab === 'recent'}
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button on:click={() => _subTab='semua'}
+          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='semua' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
+            background:{_subTab==='semua' ? 'rgba(255,255,255,.1)' : 'transparent'};
+            color:{_subTab==='semua' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
+            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+          Semua
+        </button>
+        <button on:click={() => _subTab='recent'}
+          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='recent' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
+            background:{_subTab==='recent' ? 'rgba(255,255,255,.1)' : 'transparent'};
+            color:{_subTab==='recent' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
+            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+          Terakhir Diputar
+        </button>
+        <button on:click={() => _subTab='liked'}
+          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='liked' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
+            background:{_subTab==='liked' ? 'rgba(255,255,255,.1)' : 'transparent'};
+            color:{_subTab==='liked' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
+            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+          Baru Disukai
+        </button>
+      </div>
+    {/if}
   </div>
 
   {#if _tab === 'recent'}
+    {#if _subTab === 'semua'}
+      {#if _all.length === 0}
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+            <svg width="28" height="28" fill="rgba(255,255,255,.4)" viewBox="0 0 24 24"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
+          </div>
+          <p style="color:rgba(245,245,245,.38);font-size:.84rem;text-align:center">Belum ada aktivitas<br><span style="font-size:.74rem;color:rgba(245,245,245,.25)">Putar atau suka lagu dulu yuk!</span></p>
+        </div>
+      {:else}
+        <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+          {#each _all as item, i}
+            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+              {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
+              <button on:click={() => _pl(item, _all, i)}
+                style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
+                <div style="position:relative">
+                  <img src={item.thumbnail} alt={item.title}
+                    style="width:62px;height:62px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
+                  {#if _loadingId === item.videoId}
+                    <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
+                      <div class="mini-spin"></div>
+                    </div>
+                  {:else if $_q8z?.videoId === item.videoId}
+                    <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
+                      <svg width="16" height="16" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    </div>
+                  {/if}
+                </div>
+              </button>
+              <div style="flex:1;min-width:0">
+                <button on:click={() => _pl(item, _all, i)}
+                  style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
+                  <p style="font-size:.9rem;font-weight:700;line-height:1.35;
+                    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+                    color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
+                </button>
+                {#if item.author}
+                  <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+                {/if}
+              </div>
+              <div style="display:flex;align-items:center;gap:4px;flex-shrink:0" title={item._wasLiked && item._wasRecent ? 'Terakhir diputar & disukai' : item._wasLiked ? 'Disukai' : 'Terakhir diputar'}>
+                {#if item._wasLiked}
+                  <svg width="14" height="14" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                {/if}
+                {#if item._wasRecent}
+                  <svg width="14" height="14" fill="rgba(245,245,245,.4)" viewBox="0 0 24 24"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
+                {/if}
+              </div>
+              <button on:click={e => _openMenu(e, { ...item, _ctx: 'recent' })}
+                style="width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                  background:transparent;border:none;cursor:pointer;color:rgba(245,245,245,.3);transition:all .15s"
+                onmouseenter="this.style.background='rgba(255,255,255,.1)';this.style.color='rgba(255,255,255,.7)'"
+                onmouseleave="this.style.background='transparent';this.style.color='rgba(245,245,245,.3)'">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+    {:else if _subTab === 'recent'}
     {#if _rp.length === 0}
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
         <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
@@ -190,6 +295,59 @@
           </div>
         {/each}
       </div>
+    {/if}
+
+    {:else}
+      {#if _liked.length === 0}
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
+          <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+            <svg width="26" height="26" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+          <p style="color:rgba(245,245,245,.38);font-size:.84rem;text-align:center">Belum ada lagu disukai<br><span style="font-size:.74rem;color:rgba(245,245,245,.25)">Tap ikon hati di Now Playing buat nyimpen lagu</span></p>
+        </div>
+      {:else}
+        <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+          {#each _liked as item, i}
+            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+              {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
+              <button on:click={() => _pl(item, _liked, i)}
+                style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
+                <div style="position:relative">
+                  <img src={item.thumbnail} alt={item.title}
+                    style="width:62px;height:62px;border-radius:0;object-fit:cover;display:block" loading="lazy" />
+                  {#if _loadingId === item.videoId}
+                    <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.7);display:flex;align-items:center;justify-content:center">
+                      <div class="mini-spin"></div>
+                    </div>
+                  {:else if $_q8z?.videoId === item.videoId}
+                    <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
+                      <svg width="16" height="16" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    </div>
+                  {/if}
+                </div>
+              </button>
+              <div style="flex:1;min-width:0">
+                <button on:click={() => _pl(item, _liked, i)}
+                  style="display:block;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0">
+                  <p style="font-size:.9rem;font-weight:700;line-height:1.35;
+                    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+                    color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'};margin-bottom:3px">{item.title}</p>
+                </button>
+                {#if item.author}
+                  <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+                {/if}
+              </div>
+              <button on:click={() => _doUnlike(item)} aria-label="Hapus dari Lagu Disukai"
+                style="width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                  background:transparent;border:none;cursor:pointer;transition:all .15s"
+                onmouseenter="this.style.background='rgba(255,255,255,.1)'"
+                onmouseleave="this.style.background='transparent'">
+                <svg width="17" height="17" fill="#FFFFFF" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
     {/if}
 
   {:else if _tab === 'liked'}
