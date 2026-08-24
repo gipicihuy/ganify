@@ -39,7 +39,7 @@ export function addRecentlyPlayed(track) {
   try {
     let list = getRecentlyPlayed();
     list = list.filter(t => t.videoId !== track.videoId);
-    list.unshift(track);
+    list.unshift({ ...track, playedAt: Date.now() });
     if (list.length > _RP_MAX) list = list.slice(0, _RP_MAX);
     localStorage.setItem(_RP_KEY, JSON.stringify(list));
   } catch {}
