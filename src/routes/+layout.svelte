@@ -770,7 +770,14 @@
     </button>
     <div style="text-align:center;min-width:0;flex:1">
       <p style="font-size:.62rem;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.14em">{$_showLyrics ? 'LIRIK' : 'SEDANG DIPUTAR'}</p>
-      <p style="font-size:.68rem;font-weight:600;color:rgba(245,245,245,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px auto 0">{$_q8z.title}</p>
+      {#if $_showLyrics}
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;margin:2px auto 0">
+          <img src={$_q8z.thumbnail} alt="" style="width:18px;height:18px;border-radius:4px;object-fit:cover;flex-shrink:0" />
+          <p style="font-size:.68rem;font-weight:600;color:rgba(245,245,245,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0">{$_q8z.title}</p>
+        </div>
+      {:else}
+        <p style="font-size:.68rem;font-weight:600;color:rgba(245,245,245,.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px auto 0">{$_q8z.title}</p>
+      {/if}
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0">
       <button on:click={() => _openMenuSheet($_q8z)}
