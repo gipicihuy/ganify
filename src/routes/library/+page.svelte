@@ -221,9 +221,8 @@
       {:else}
         <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
           {#each _all as item, i}
-            <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
-              <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item._ts)}</span>
               <button on:click={() => _pl(item, _all, i)}
                 style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
                 <div style="position:relative">
@@ -250,6 +249,7 @@
                 {#if item.author}
                   <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
                 {/if}
+                <p style="font-size:.66rem;color:rgba(245,245,245,.3);margin:2px 0 0;white-space:nowrap">{_timeAgo(item._ts)}</p>
               </div>
               <div style="display:flex;align-items:center;gap:4px;flex-shrink:0" title={item._wasLiked && item._wasRecent ? 'Terakhir diputar & disukai' : item._wasLiked ? 'Disukai' : 'Terakhir diputar'}>
                 {#if item._wasLiked}
@@ -282,9 +282,8 @@
     {:else}
       <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
         {#each _rp as item, i}
-          <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+          <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
             {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
-            <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item.playedAt)}</span>
             <button on:click={() => _pl(item, _rp, i)}
               style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
               <div style="position:relative">
@@ -311,6 +310,7 @@
               {#if item.author}
                 <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
               {/if}
+              <p style="font-size:.66rem;color:rgba(245,245,245,.3);margin:2px 0 0;white-space:nowrap">{_timeAgo(item.playedAt)}</p>
             </div>
             <button on:click={e => _openMenu(e, { ...item, _ctx: 'recent' })}
               style="width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -335,9 +335,8 @@
       {:else}
         <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
           {#each _recentlyLiked as item, i}
-            <div style="position:relative;border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
+            <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
-              <span style="position:absolute;top:6px;right:10px;font-size:.62rem;font-weight:600;color:rgba(245,245,245,.32);white-space:nowrap">{_timeAgo(item.likedAt)}</span>
               <button on:click={() => _pl(item, _recentlyLiked, i)}
                 style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:0">
                 <div style="position:relative">
@@ -364,6 +363,7 @@
                 {#if item.author}
                   <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
                 {/if}
+                <p style="font-size:.66rem;color:rgba(245,245,245,.3);margin:2px 0 0;white-space:nowrap">{_timeAgo(item.likedAt)}</p>
               </div>
               <button on:click={() => _doUnlike(item)} aria-label="Hapus dari Lagu Disukai"
                 style="width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
