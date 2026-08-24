@@ -91,9 +91,7 @@
   // Query fallback kalau FEmusic_home gagal/kosong (mis. YT Music menolak
   // request tanpa sesi login) — biar section tetap ada isinya, bukan hilang.
   const _trendingFallbackQueries = [
-    'Top Trending Songs 2026',
-    'Lagu Viral 2026',
-    'Global Top Hits 2026'
+    'Lagu Viral 2026'
   ];
 
   async function _loadTrendingFallback() {
