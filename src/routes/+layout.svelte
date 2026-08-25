@@ -1092,11 +1092,11 @@
 {/if}
 
 {#if $_showMenu}
-  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;animation:_menuOverlayIn .26s ease"
+  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;animation:_menuOverlayIn .28s ease"
     on:click={_closeMenuSheet}>
     <div bind:this={_menuSheetEl} style="width:100%;max-width:560px;background:#1c1c1c;border-radius:24px 24px 0 0;
-      padding:0 0 40px;border-top:1px solid rgba(255,255,255,.15);max-height:75vh;overflow-y:auto;
-      animation:_menuSheetIn .26s cubic-bezier(.4,0,.2,1)"
+      padding:0 0 40px;border-top:1px solid rgba(255,255,255,.15);max-height:75vh;overflow-y:auto;will-change:transform;
+      animation:_menuSheetIn .32s cubic-bezier(.16,1,.3,1)"
       on:click|stopPropagation>
 
       <div style="padding:16px 20px 14px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);position:relative;touch-action:none"
