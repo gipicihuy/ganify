@@ -10,7 +10,7 @@
   import { goto } from '$app/navigation';
   import { _g9, _getArtist, _getHome } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
-  import { getPlaylists } from '$lib/playlist.js';
+  import { getPlaylists, createPlaylist } from '$lib/playlist.js';
 
   const __cv = _q8z;
   let _ds = [], _ld = true, _er = null;
@@ -294,6 +294,27 @@
     _playlists.set(getPlaylists());
     _showMenu.set(item);
   }
+
+  let _showNewPl = false;
+  let _newPlName = '';
+
+  function focusScroll(node) {
+    function onFocus() {
+      setTimeout(() => {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 320);
+    }
+    node.addEventListener('focus', onFocus);
+    return { destroy() { node.removeEventListener('focus', onFocus); } };
+  }
+
+  function _doCreatePl() {
+    if (!_newPlName.trim()) return;
+    createPlaylist(_newPlName.trim());
+    _playlists.set(getPlaylists());
+    _newPlName = '';
+    _showNewPl = false;
+  }
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:28px 16px 0">
@@ -562,13 +583,22 @@
       </div>
     {/if}
 
-    {#if _collection.length}
-      <div style="margin-bottom:24px">
+    <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
           <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Playlist &amp; Album Pilihan</span>
         </div>
         <div class="hscroll hide-scrollbar">
+          <button on:click={() => _showNewPl = true}
+            style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0">
+            <div style="width:128px;height:128px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;
+              background:rgba(255,255,255,.06);border:1.5px dashed rgba(255,255,255,.25)">
+              <svg width="26" height="26" fill="none" stroke="#F5F5F5" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </div>
+            <p style="font-size:.74rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Buat Playlist</p>
+          </button>
           {#each _collection as c}
             <button on:click={() => _openCollection(c)}
               style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0;position:relative">
@@ -583,7 +613,6 @@
           {/each}
         </div>
       </div>
-    {/if}
 
     {#if _artistsLoading}
       <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
@@ -684,6 +713,37 @@
   {/if}
 
 </div>
+
+{#if _showNewPl}
+  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
+    on:click={() => _showNewPl = false}>
+    <div style="width:100%;max-width:400px;background:#1c1c1c;border-radius:20px;padding:24px 20px;border:1px solid rgba(255,255,255,.15)"
+      on:click|stopPropagation>
+      <p style="font-size:.95rem;font-weight:700;color:#FFFFFF;margin:0 0 16px">Playlist Baru</p>
+      <input
+        bind:value={_newPlName}
+        on:keydown={e => e.key === 'Enter' && _doCreatePl()}
+        placeholder="Nama playlist..."
+        style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.2);color:#F5F5F5;
+          font-family:'Quicksand',sans-serif;font-size:1rem;font-weight:500;
+          border-radius:12px;padding:12px 16px;outline:none;margin-bottom:14px;box-sizing:border-box"
+        autofocus
+        use:focusScroll
+      />
+      <div style="display:flex;gap:10px">
+        <button on:click={() => _showNewPl = false}
+          style="flex:1;padding:12px;border-radius:12px;background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.15);cursor:pointer;font-family:'Quicksand',sans-serif;
+            font-size:.85rem;font-weight:700;color:rgba(245,245,245,.6)">Batal</button>
+        <button on:click={_doCreatePl}
+          style="flex:1;padding:12px;border-radius:12px;background:linear-gradient(135deg,#FFFFFF,#E6E6E6);
+            border:none;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:.85rem;font-weight:700;color:#141414">
+          Buat
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .mini-spin {
