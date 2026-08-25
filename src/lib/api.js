@@ -143,6 +143,28 @@ export async function _getSongInfo(videoId) {
   return j.status ? j.result : null;
 }
 
+export async function _fetchAudioBytes(videoId, title = '', artist = '') {
+  let q = `/api/download?id=${encodeURIComponent(videoId)}`;
+  if (title) q += `&title=${encodeURIComponent(title)}`;
+  if (artist) q += `&artist=${encodeURIComponent(artist)}`;
+  const r = await fetch(q);
+  if (!r.ok) throw new Error('Gagal mengunduh audio');
+  return r.arrayBuffer();
+}
+
+export async function _fetchCoverBytes(thumbnailUrl) {
+  if (!thumbnailUrl) return null;
+  try {
+    const r = await fetch(`/api/cover?url=${encodeURIComponent(thumbnailUrl)}`);
+    if (!r.ok) return null;
+    const type = r.headers.get('content-type') || 'image/jpeg';
+    const buf = await r.arrayBuffer();
+    return { buffer: buf, type };
+  } catch {
+    return null;
+  }
+}
+
 export async function _getLyrics(title, artist, duration) {
   let q = `/api/lyrics?title=${encodeURIComponent(title || '')}&artist=${encodeURIComponent(artist || '')}`;
   if (duration && isFinite(duration) && duration > 0) q += `&duration=${Math.round(duration)}`;

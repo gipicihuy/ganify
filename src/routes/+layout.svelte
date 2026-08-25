@@ -4,9 +4,10 @@
   import { goto, afterNavigate } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics, _likedSongs } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
-  import { _getStreamUrl, _getLyrics, _getSongInfo } from '$lib/api.js';
+  import { _getStreamUrl, _getLyrics, _getSongInfo, _fetchAudioBytes, _fetchCoverBytes } from '$lib/api.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong } from '$lib/playlist.js';
   import { onDestroy, onMount, tick } from 'svelte';
+  import { ID3Writer } from 'browser-id3-writer';
 
   $: _rt = $page.url.pathname;
 
@@ -155,6 +156,101 @@
     _showMenu.set(null);
     _showNewPlInSheet = false;
     _newPlName = '';
+  }
+
+  let _menuSheetEl = null;
+  let _menuSwipeStartY = 0;
+  let _menuSwipeDeltaY = 0;
+  let _menuIsSwiping = false;
+  let _menuClosing = false;
+  const _MENU_CLOSE_MS = 260;
+
+  function _animateCloseMenuSheet() {
+    if (_menuClosing) return;
+    _menuClosing = true;
+    if (_menuSheetEl) {
+      _menuSheetEl.style.transition = `transform ${_MENU_CLOSE_MS}ms cubic-bezier(.4,0,.2,1)`;
+      _menuSheetEl.style.transform = 'translateY(100%)';
+    }
+    setTimeout(() => {
+      _closeMenuSheet();
+      _menuClosing = false;
+    }, _MENU_CLOSE_MS);
+  }
+
+  function _onMenuSheetTouchStart(e) {
+    if (_menuClosing) return;
+    _menuSwipeStartY = e.touches[0].clientY;
+    _menuSwipeDeltaY = 0;
+    _menuIsSwiping = true;
+    if (_menuSheetEl) _menuSheetEl.style.transition = 'none';
+  }
+
+  function _onMenuSheetTouchMove(e) {
+    if (!_menuIsSwiping || _menuClosing) return;
+    const dy = e.touches[0].clientY - _menuSwipeStartY;
+    if (dy <= 0) { _menuSwipeDeltaY = 0; return; }
+    _menuSwipeDeltaY = dy;
+    if (_menuSheetEl) _menuSheetEl.style.transform = `translateY(${dy}px)`;
+  }
+
+  function _onMenuSheetTouchEnd() {
+    if (!_menuIsSwiping) return;
+    _menuIsSwiping = false;
+    if (_menuSwipeDeltaY > 90) {
+      _animateCloseMenuSheet();
+    } else if (_menuSheetEl) {
+      _menuSheetEl.style.transition = `transform ${_MENU_CLOSE_MS}ms cubic-bezier(.4,0,.2,1)`;
+      _menuSheetEl.style.transform = 'translateY(0)';
+    }
+    _menuSwipeDeltaY = 0;
+  }
+
+  let _downloadingId = null;
+
+  function _sanitizeFilename(name) {
+    return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  async function _downloadTrack(track) {
+    if (!track || _downloadingId) return;
+    _downloadingId = track.videoId;
+    const title = track.title || 'Untitled';
+    const artist = track.author || track.artist || 'Unknown Artist';
+    try {
+      const [audioBuf, cover] = await Promise.all([
+        _fetchAudioBytes(track.videoId, title, artist),
+        _fetchCoverBytes(track.thumbnail)
+      ]);
+      const writer = new ID3Writer(audioBuf);
+      writer.setFrame('TIT2', title);
+      writer.setFrame('TPE1', [artist]);
+      if (cover) {
+        writer.setFrame('APIC', {
+          type: 3,
+          data: cover.buffer,
+          description: '',
+          useUnicodeEncoding: false
+        });
+      }
+      writer.addTag();
+      const blob = writer.getBlob();
+      const filename = _sanitizeFilename(`${title} - ${artist}.mp3`);
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+      _animateCloseMenuSheet();
+      _showFeedback('Lagu berhasil diunduh');
+    } catch (e) {
+      _showFeedback('Gagal mengunduh lagu');
+    } finally {
+      _downloadingId = null;
+    }
   }
 
   async function _shareTrack(track) {
@@ -993,14 +1089,18 @@
 {/if}
 
 {#if $_showMenu}
-  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center"
-    on:click={_closeMenuSheet}>
-    <div style="width:100%;max-width:560px;background:#1c1c1c;border-radius:24px 24px 0 0;
-      padding:0 0 40px;border-top:1px solid rgba(255,255,255,.15);max-height:75vh;overflow-y:auto"
+  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;animation:_menuOverlayIn .26s ease"
+    on:click={_animateCloseMenuSheet}>
+    <div bind:this={_menuSheetEl} style="width:100%;max-width:560px;background:#1c1c1c;border-radius:24px 24px 0 0;
+      padding:0 0 40px;border-top:1px solid rgba(255,255,255,.15);max-height:75vh;overflow-y:auto;
+      animation:_menuSheetIn .26s cubic-bezier(.4,0,.2,1)"
       on:click|stopPropagation>
 
-      <div style="padding:16px 20px 14px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08)">
-        <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.2);position:absolute;top:16px;left:50%;transform:translateX(-50%)"></div>
+      <div style="padding:16px 20px 14px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);position:relative;touch-action:none"
+        on:touchstart|passive={_onMenuSheetTouchStart}
+        on:touchmove={_onMenuSheetTouchMove}
+        on:touchend={_onMenuSheetTouchEnd}>
+        <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.25);position:absolute;top:8px;left:50%;transform:translateX(-50%)"></div>
         <img src={$_showMenu.thumbnail} alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;margin-top:8px" />
         <div style="flex:1;min-width:0;margin-top:8px">
           <p style="font-size:.8rem;font-weight:700;color:#F5F5F5;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{$_showMenu.title}</p>
@@ -1039,6 +1139,24 @@
             <span style="font-size:.82rem;font-weight:700;color:rgba(245,245,245,.8)">Lihat Lirik</span>
           </button>
         {/if}
+
+        <button on:click={() => _downloadTrack($_showMenu)} disabled={_downloadingId === $_showMenu.videoId}
+          style="width:100%;display:flex;align-items:center;gap:12px;padding:0 0 14px;
+            background:none;border:none;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;text-align:left;margin-bottom:14px">
+          <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
+            background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+            display:flex;align-items:center;justify-content:center">
+            {#if _downloadingId === $_showMenu.videoId}
+              <div class="mini-spin"></div>
+            {:else}
+              <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            {/if}
+          </div>
+          <span style="font-size:.82rem;font-weight:700;color:rgba(245,245,245,.8)">
+            {_downloadingId === $_showMenu.videoId ? 'Mengunduh...' : 'Download'}
+          </span>
+        </button>
+
         <p style="font-size:.65rem;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;margin:0 0 12px">TAMBAH KE PLAYLIST</p>
 
         <button on:click={() => { _pendingTrack = $_showMenu; _showMenu.set(null); _showNewPlModal = true; _newPlName = ''; }}
@@ -1209,6 +1327,8 @@
   @keyframes _ring { to { transform: rotate(360deg); } }
   @keyframes _spin { to { transform: rotate(360deg); } }
   @keyframes _fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  @keyframes _menuOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes _menuSheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
   .player-spin { width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.15);border-top-color:#FFFFFF;animation:_sp .7s linear infinite; }
   .np-spin { width:52px;height:52px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#FFFFFF;animation:_sp .8s linear infinite; }
