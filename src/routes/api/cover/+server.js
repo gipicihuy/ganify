@@ -11,8 +11,11 @@ export async function GET({ url }) {
     return new Response(JSON.stringify({ error: 'invalid url' }), { status: 400 });
   }
 
-  const allowedHosts = ['lh3.googleusercontent.com', 'i.ytimg.com', 'yt3.ggpht.com'];
-  if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`))) {
+  const allowedRootDomains = ['googleusercontent.com', 'ggpht.com', 'ytimg.com', 'youtube.com'];
+  const hostOk = allowedRootDomains.some(
+    root => parsed.hostname === root || parsed.hostname.endsWith(`.${root}`)
+  );
+  if (!hostOk) {
     return new Response(JSON.stringify({ error: 'host not allowed' }), { status: 400 });
   }
 

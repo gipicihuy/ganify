@@ -196,6 +196,24 @@
     return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
   }
 
+  async function _coverToJpegBytes(cover) {
+    if (!cover) return null;
+    try {
+      const blob = new Blob([cover.buffer], { type: cover.type || 'image/jpeg' });
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const jpegBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (!jpegBlob) return null;
+      return await jpegBlob.arrayBuffer();
+    } catch {
+      return null;
+    }
+  }
+
   async function _downloadTrack(track) {
     if (!track || _downloadingId) return;
     _downloadingId = track.videoId;
@@ -206,13 +224,14 @@
         _fetchAudioBytes(track.videoId, title, artist),
         _fetchCoverBytes(track.thumbnail)
       ]);
+      const coverJpeg = await _coverToJpegBytes(cover);
       const writer = new ID3Writer(audioBuf);
       writer.setFrame('TIT2', title);
       writer.setFrame('TPE1', [artist]);
-      if (cover) {
+      if (coverJpeg) {
         writer.setFrame('APIC', {
           type: 3,
-          data: cover.buffer,
+          data: coverJpeg,
           description: '',
           useUnicodeEncoding: false
         });
@@ -1111,35 +1130,38 @@
       </div>
 
       <div style="padding:14px 20px 0">
-        {#if $_showMenu.videoId === $_q8z?.videoId}
-          <button on:click={() => { _closeMenuSheet(); _showNP.set(true); if (!$_showLyrics) _toggleLyrics(); }}
-            style="width:100%;display:flex;align-items:center;gap:12px;padding:0 0 14px;
-              background:none;border:none;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;text-align:left;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:14px">
+          {#if $_showMenu.videoId === $_q8z?.videoId}
+            <button on:click={() => { _closeMenuSheet(); _showNP.set(true); if (!$_showLyrics) _toggleLyrics(); }}
+              style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;
+                background:none;border:none;cursor:pointer">
+              <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
+                background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+                display:flex;align-items:center;justify-content:center">
+                <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+              </div>
+              <span style="font-size:.78rem;font-weight:700;color:rgba(245,245,245,.8)">Lirik</span>
+            </button>
+          {/if}
+
+          <button on:click={() => _downloadTrack($_showMenu)} disabled={_downloadingId === $_showMenu.videoId}
+            style="grid-column:{$_showMenu.videoId === $_q8z?.videoId ? 'auto' : '1 / span 2'};
+              display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;
+              background:none;border:none;cursor:pointer">
             <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
               background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
               display:flex;align-items:center;justify-content:center">
-              <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+              {#if _downloadingId === $_showMenu.videoId}
+                <div class="mini-spin"></div>
+              {:else}
+                <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              {/if}
             </div>
-            <span style="font-size:.82rem;font-weight:700;color:rgba(245,245,245,.8)">Lihat Lirik</span>
+            <span style="font-size:.78rem;font-weight:700;color:rgba(245,245,245,.8)">
+              {_downloadingId === $_showMenu.videoId ? 'Mengunduh...' : 'Download'}
+            </span>
           </button>
-        {/if}
-
-        <button on:click={() => _downloadTrack($_showMenu)} disabled={_downloadingId === $_showMenu.videoId}
-          style="width:100%;display:flex;align-items:center;gap:12px;padding:0 0 14px;
-            background:none;border:none;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;text-align:left;margin-bottom:14px">
-          <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
-            background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-            display:flex;align-items:center;justify-content:center">
-            {#if _downloadingId === $_showMenu.videoId}
-              <div class="mini-spin"></div>
-            {:else}
-              <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            {/if}
-          </div>
-          <span style="font-size:.82rem;font-weight:700;color:rgba(245,245,245,.8)">
-            {_downloadingId === $_showMenu.videoId ? 'Mengunduh...' : 'Download'}
-          </span>
-        </button>
+        </div>
 
         <p style="font-size:.65rem;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;margin:0 0 12px">TAMBAH KE PLAYLIST</p>
 
