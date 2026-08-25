@@ -1121,45 +1121,38 @@
               <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             {/if}
           </button>
-          <button on:click={() => _shareTrack($_showMenu)} aria-label="Bagikan Lagu"
-            style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-              background:none;border:none;cursor:pointer">
-            <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 512 512"><path d="M503.691 189.836L327.687 37.851C312.281 24.546 288 35.347 288 56.015v80.053C127.371 137.907 0 170.1 0 322.326c0 61.441 39.581 122.309 83.333 154.132 13.653 9.931 33.111-2.533 28.077-18.631C66.066 312.814 132.917 274.316 288 272.085V360c0 20.7 24.3 31.453 39.687 18.164l176.004-152c11.071-9.562 11.086-26.753 0-36.328z"/></svg>
-          </button>
         </div>
       </div>
 
       <div style="padding:14px 20px 0">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:14px">
           {#if $_showMenu.videoId === $_q8z?.videoId}
             <button on:click={() => { _closeMenuSheet(); _showNP.set(true); if (!$_showLyrics) _toggleLyrics(); }}
-              style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;
-                background:none;border:none;cursor:pointer">
-              <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
-                background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-                display:flex;align-items:center;justify-content:center">
-                <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
-              </div>
-              <span style="font-size:.78rem;font-weight:700;color:rgba(245,245,245,.8)">Lirik</span>
+              style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 4px;
+                background:rgba(255,255,255,.06);border:none;border-radius:14px;cursor:pointer">
+              <svg width="19" height="19" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12M6 13h8M6 6h12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-size:.68rem;font-weight:700;color:rgba(245,245,245,.75)">Lirik</span>
             </button>
           {/if}
 
           <button on:click={() => _downloadTrack($_showMenu)} disabled={_downloadingId === $_showMenu.videoId}
-            style="grid-column:{$_showMenu.videoId === $_q8z?.videoId ? 'auto' : '1 / span 2'};
-              display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;
-              background:none;border:none;cursor:pointer">
-            <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;
-              background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-              display:flex;align-items:center;justify-content:center">
-              {#if _downloadingId === $_showMenu.videoId}
-                <div class="mini-spin"></div>
-              {:else}
-                <svg width="18" height="18" fill="rgba(255,255,255,.7)" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-              {/if}
-            </div>
-            <span style="font-size:.78rem;font-weight:700;color:rgba(245,245,245,.8)">
-              {_downloadingId === $_showMenu.videoId ? 'Mengunduh...' : 'Download'}
+            style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 4px;
+              background:rgba(255,255,255,.06);border:none;border-radius:14px;cursor:pointer">
+            {#if _downloadingId === $_showMenu.videoId}
+              <div class="mini-spin"></div>
+            {:else}
+              <svg width="19" height="19" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            {/if}
+            <span style="font-size:.68rem;font-weight:700;color:rgba(245,245,245,.75)">
+              {_downloadingId === $_showMenu.videoId ? 'Mengunduh' : 'Download'}
             </span>
+          </button>
+
+          <button on:click={() => _shareTrack($_showMenu)}
+            style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 4px;
+              background:rgba(255,255,255,.06);border:none;border-radius:14px;cursor:pointer">
+            <svg width="19" height="19" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.6" viewBox="0 0 24 24"><path d="M18 8a3 3 0 100-6 3 3 0 000 6zM6 15a3 3 0 100-6 3 3 0 000 6zM18 22a3 3 0 100-6 3 3 0 000 6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span style="font-size:.68rem;font-weight:700;color:rgba(245,245,245,.75)">Share</span>
           </button>
         </div>
 
