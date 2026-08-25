@@ -597,7 +597,8 @@
                 <path d="M12 5v14M5 12h14"/>
               </svg>
             </div>
-            <p style="font-size:.74rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Buat Playlist</p>
+            <p style="font-size:.74rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Buat Playlist</p>
+            <p style="font-size:.65rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Playlist baru</p>
           </button>
           {#each _collection as c}
             <button on:click={() => _openCollection(c)}
