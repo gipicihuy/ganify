@@ -162,24 +162,8 @@
   let _menuSwipeStartY = 0;
   let _menuSwipeDeltaY = 0;
   let _menuIsSwiping = false;
-  let _menuClosing = false;
-  const _MENU_CLOSE_MS = 260;
-
-  function _animateCloseMenuSheet() {
-    if (_menuClosing) return;
-    _menuClosing = true;
-    if (_menuSheetEl) {
-      _menuSheetEl.style.transition = `transform ${_MENU_CLOSE_MS}ms cubic-bezier(.4,0,.2,1)`;
-      _menuSheetEl.style.transform = 'translateY(100%)';
-    }
-    setTimeout(() => {
-      _closeMenuSheet();
-      _menuClosing = false;
-    }, _MENU_CLOSE_MS);
-  }
 
   function _onMenuSheetTouchStart(e) {
-    if (_menuClosing) return;
     _menuSwipeStartY = e.touches[0].clientY;
     _menuSwipeDeltaY = 0;
     _menuIsSwiping = true;
@@ -187,7 +171,7 @@
   }
 
   function _onMenuSheetTouchMove(e) {
-    if (!_menuIsSwiping || _menuClosing) return;
+    if (!_menuIsSwiping) return;
     const dy = e.touches[0].clientY - _menuSwipeStartY;
     if (dy <= 0) { _menuSwipeDeltaY = 0; return; }
     _menuSwipeDeltaY = dy;
@@ -198,9 +182,9 @@
     if (!_menuIsSwiping) return;
     _menuIsSwiping = false;
     if (_menuSwipeDeltaY > 90) {
-      _animateCloseMenuSheet();
+      _closeMenuSheet();
     } else if (_menuSheetEl) {
-      _menuSheetEl.style.transition = `transform ${_MENU_CLOSE_MS}ms cubic-bezier(.4,0,.2,1)`;
+      _menuSheetEl.style.transition = 'transform .2s cubic-bezier(.4,0,.2,1)';
       _menuSheetEl.style.transform = 'translateY(0)';
     }
     _menuSwipeDeltaY = 0;
@@ -244,7 +228,7 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
-      _animateCloseMenuSheet();
+      _closeMenuSheet();
       _showFeedback('Lagu berhasil diunduh');
     } catch (e) {
       _showFeedback('Gagal mengunduh lagu');
@@ -1090,7 +1074,7 @@
 
 {#if $_showMenu}
   <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;animation:_menuOverlayIn .26s ease"
-    on:click={_animateCloseMenuSheet}>
+    on:click={_closeMenuSheet}>
     <div bind:this={_menuSheetEl} style="width:100%;max-width:560px;background:#1c1c1c;border-radius:24px 24px 0 0;
       padding:0 0 40px;border-top:1px solid rgba(255,255,255,.15);max-height:75vh;overflow-y:auto;
       animation:_menuSheetIn .26s cubic-bezier(.4,0,.2,1)"
