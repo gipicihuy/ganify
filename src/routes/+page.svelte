@@ -709,7 +709,7 @@
 
   {#if !_ld && !_er}
   <div style="padding:20px 0 24px;text-align:center">
-    <span style="font-size:.62rem;color:rgba(255,255,255,.2);letter-spacing:.12em;font-weight:600">· dibuat dengan ❤️ oleh givy ·</span>
+    <span style="font-size:.68rem;color:rgba(255,255,255,.4);letter-spacing:.04em">&copy; 2026 Ganify. All rights reserved.</span>
   </div>
   {/if}
 

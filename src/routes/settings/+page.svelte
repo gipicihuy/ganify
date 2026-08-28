@@ -35,6 +35,8 @@
     <span style="font-size:.85rem;font-weight:700;color:#141414">Sign in dengan Google</span>
   </button>
 
-  <p style="font-size:.68rem;color:rgba(245,245,245,.3);margin-top:24px">Ganify &middot; dibuat dengan &hearts; oleh Givy</p>
+  <div style="margin-top:32px">
+    <span style="font-size:.68rem;color:rgba(255,255,255,.4);letter-spacing:.04em">&copy; 2026 Ganify. All rights reserved.</span>
+  </div>
 
 </div>
