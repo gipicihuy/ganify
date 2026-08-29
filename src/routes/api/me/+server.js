@@ -33,6 +33,11 @@ export async function POST({ request, locals, platform, cookies }) {
     cookies.set(GUEST_COOKIE, newUid, guestCookieOptions());
     await ensureUser(db, newUid);
     locals.uid = newUid;
+  } else if (body.action === 'log_out') {
+    const newUid = crypto.randomUUID();
+    cookies.set(GUEST_COOKIE, newUid, guestCookieOptions());
+    await ensureUser(db, newUid);
+    locals.uid = newUid;
   }
   return json({ ok: true });
 }

@@ -1,6 +1,5 @@
 <script>
   import { onMount } from 'svelte';
-  import { signIn, signOut } from '@auth/sveltekit/client';
 
   let _loading = true;
   let _me = null;
@@ -10,11 +9,11 @@
   let _toastTimer = null;
 
   function handleGoogleSignIn() {
-    signIn('google');
+    location.href = '/login';
   }
 
   function handleLogOut() {
-    signOut({ callbackUrl: '/' });
+    location.href = '/logout';
   }
 
   onMount(async () => {
