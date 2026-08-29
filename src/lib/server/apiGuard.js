@@ -12,7 +12,11 @@ const RATE_LIMITED_PREFIXES = [
   '/api/home',
   '/api/cover',
   '/api/album',
-  '/api/artist'
+  '/api/artist',
+  '/api/liked',
+  '/api/history',
+  '/api/playlists',
+  '/api/me'
 ];
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -39,7 +43,14 @@ function isSameSiteRequest(event) {
       return false;
     }
   }
-  return true;
+  // No sec-fetch-site, origin, or referer at all: every real browser request
+  // (navigation or fetch/XHR) sends at least one of these automatically, so
+  // a request with none of them is almost certainly a script/curl/Postman
+  // hitting the API directly rather than the app's own frontend. Previously
+  // this fell through to `return true` (allowed), which meant simply not
+  // sending those headers - the default for most non-browser HTTP clients -
+  // bypassed this check entirely. Fail closed instead.
+  return false;
 }
 
 function isRateLimited(path) {
