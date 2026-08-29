@@ -1,11 +1,6 @@
-<!--
-  Halaman ini nantinya jadi pusat akun & pengaturan pengguna.
-  Status akun (guest/linked) diambil dari GET /api/me.
-  Aksi kelola data & hapus akun lewat POST /api/me.
--->
 <script>
   import { onMount } from 'svelte';
-  import { signIn } from '@auth/sveltekit/client';
+  import { signIn, signOut } from '@auth/sveltekit/client';
 
   let _loading = true;
   let _me = null;
@@ -16,6 +11,10 @@
 
   function handleGoogleSignIn() {
     signIn('google');
+  }
+
+  function handleLogOut() {
+    signOut({ callbackUrl: '/' });
   }
 
   onMount(async () => {
@@ -51,11 +50,6 @@
       desc: 'Riwayat pemutaran lagu akan dihapus permanen dan tidak bisa dikembalikan.',
       confirmLabel: 'Hapus'
     },
-    delete_account: {
-      title: 'Hapus Akun?',
-      desc: 'Semua lagu disukai, playlist, dan riwayat akan dihapus permanen. Kamu akan keluar dan mulai dari akun tamu baru.',
-      confirmLabel: 'Hapus Akun'
-    },
     reset_guest: {
       title: 'Reset Akun Tamu?',
       desc: 'Semua lagu disukai, playlist, dan riwayat di perangkat ini akan dihapus dan kamu mulai dari awal.',
@@ -72,7 +66,7 @@
         body: JSON.stringify({ action: action === 'reset_guest' ? 'delete_account' : action })
       });
       _confirmAction = null;
-      if (action === 'delete_account' || action === 'reset_guest') {
+      if (action === 'reset_guest') {
         location.href = '/';
         return;
       }
@@ -154,11 +148,11 @@
     <div class="settings-section">
       <p class="settings-section-title">Akun</p>
       {#if _me && !_me.isGuest}
-        <button class="settings-row settings-row-danger" on:click={() => _confirmAction = 'delete_account'}>
+        <button class="settings-row" on:click={handleLogOut}>
           <span class="settings-row-icon">
-            <svg width="18" height="18" fill="rgba(255,100,100,.75)" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            <svg width="18" height="18" fill="rgba(245,245,245,.6)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
           </span>
-          <span class="settings-row-label" style="color:rgba(255,100,100,.85)">Hapus Akun</span>
+          <span class="settings-row-label">Log Out</span>
         </button>
       {:else}
         <button class="settings-row settings-row-danger" on:click={() => _confirmAction = 'reset_guest'}>
