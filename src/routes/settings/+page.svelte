@@ -57,7 +57,7 @@
       handleGoogleSignIn();
       return;
     }
-    goto('/profile');
+    goto('/settings/profile');
   }
 
   function _openConnectedAccounts() {
