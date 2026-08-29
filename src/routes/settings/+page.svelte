@@ -8,16 +8,12 @@
   let _processing = false;
   let _toast = '';
   let _toastTimer = null;
-  let _editingName = false;
-  let _nameInput = '';
-  let _savingName = false;
-  let _nameError = '';
   let _sheet = null; // 'account' | 'clearData' | 'appearance' | 'theme' | null
 
   // Kunci scroll halaman di belakang selagi modal/sheet manapun terbuka,
   // supaya yang ke-scroll cuma isi modal-nya, bukan konten Settings di
   // belakangnya.
-  $: _modalOpen = _editingName || !!_confirmAction || !!_sheet;
+  $: _modalOpen = !!_confirmAction || !!_sheet;
   $: if (typeof document !== 'undefined') {
     document.body.style.overflow = _modalOpen ? 'hidden' : '';
   }
@@ -56,18 +52,12 @@
     _toastTimer = setTimeout(() => { _toast = ''; }, 2400);
   }
 
-  function _openNameEdit() {
-    _nameInput = _me?.name || '';
-    _nameError = '';
-    _editingName = true;
-  }
-
   function _openProfile() {
     if (!_me || _me.isGuest) {
       handleGoogleSignIn();
       return;
     }
-    _openNameEdit();
+    goto('/profile');
   }
 
   function _openConnectedAccounts() {
@@ -76,39 +66,6 @@
       return;
     }
     _sheet = 'account';
-  }
-
-  async function _saveName() {
-    const trimmed = _nameInput.trim();
-    if (!trimmed) {
-      _nameError = 'Nama gak boleh kosong';
-      return;
-    }
-    if (trimmed.length > 60) {
-      _nameError = 'Kepanjangan, maksimal 60 karakter';
-      return;
-    }
-    _savingName = true;
-    _nameError = '';
-    try {
-      const res = await fetch('/api/me', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_name', name: trimmed })
-      });
-      const data = await res.json();
-      if (!res.ok || data?.error) {
-        _nameError = 'Gagal simpan, coba lagi';
-        return;
-      }
-      _me = { ..._me, name: trimmed };
-      _editingName = false;
-      _showToast('Nama berhasil diganti');
-    } catch {
-      _nameError = 'Gagal simpan, coba lagi';
-    } finally {
-      _savingName = false;
-    }
   }
 
   const _confirmCopy = {
@@ -322,41 +279,6 @@
   {/if}
 
 </div>
-
-{#if _editingName}
-  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
-    on:click={() => { if (!_savingName) _editingName = false; }}>
-    <div style="width:100%;max-width:320px;max-height:85vh;overflow-y:auto;background:#1c1c1c;border-radius:18px;padding:24px 20px;border:1px solid rgba(255,255,255,.12)"
-      on:click|stopPropagation>
-      <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 14px">Ganti Nama</p>
-      <input
-        type="text"
-        bind:value={_nameInput}
-        maxlength="60"
-        placeholder="Nama kamu"
-        disabled={_savingName}
-        on:keydown={(e) => e.key === 'Enter' && _saveName()}
-        style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.06);
-          border:1px solid rgba(255,255,255,.15);color:#FFFFFF;font-family:'Quicksand',sans-serif;font-size:.85rem;
-          font-weight:600;margin-bottom:8px;outline:none" />
-      {#if _nameError}
-        <p style="font-size:.72rem;color:rgba(255,100,100,.85);margin:0 0 8px">{_nameError}</p>
-      {/if}
-      <div style="display:flex;gap:10px;margin-top:12px">
-        <button disabled={_savingName} on:click={() => _editingName = false}
-          style="flex:1;padding:11px;border-radius:10px;background:rgba(255,255,255,.07);
-            border:1px solid rgba(255,255,255,.15);cursor:pointer;font-family:'Quicksand',sans-serif;
-            font-size:.8rem;font-weight:700;color:rgba(245,245,245,.6)">Batal</button>
-        <button disabled={_savingName} on:click={_saveName}
-          style="flex:1;padding:11px;border-radius:10px;background:rgba(255,255,255,.12);
-            border:1px solid rgba(255,255,255,.25);cursor:pointer;font-family:'Quicksand',sans-serif;
-            font-size:.8rem;font-weight:700;color:#FFFFFF">
-          {_savingName ? '...' : 'Simpan'}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 {#if _confirmAction}
   <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
