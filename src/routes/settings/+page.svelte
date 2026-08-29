@@ -156,7 +156,7 @@
       <h1 style="font-size:1.35rem;font-weight:700;color:#FFFFFF;margin:0">Settings</h1>
     </div>
 
-    <div style="display:flex;align-items:center;gap:14px;padding:2px 4px 4px">
+    <div style="display:flex;align-items:center;gap:14px;padding:2px 4px 28px">
       <div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         {#if _me && !_me.isGuest && _me.avatarUrl}
           <img src={_me.avatarUrl} alt={_me.name || 'Avatar'} style="width:100%;height:100%;object-fit:cover" />
@@ -173,15 +173,14 @@
         <p style="font-size:.78rem;color:rgba(255,255,255,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           {#if _me && !_me.isGuest}{_me.email || 'Tersambung dengan Google'}{:else}Belum masuk akun{/if}
         </p>
+        {#if _me && !_me.isGuest}
+          <button class="account-logout-btn" on:click={handleLogOut}>
+            <svg width="17" height="17" fill="rgba(255,100,100,.9)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
+            <span>Log Out</span>
+          </button>
+        {/if}
       </div>
     </div>
-
-    {#if _me && !_me.isGuest}
-      <button class="account-logout-btn" on:click={handleLogOut}>
-        <svg width="17" height="17" fill="rgba(255,100,100,.9)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
-        <span>Log Out</span>
-      </button>
-    {/if}
 
     {#if !_me || _me.isGuest}
       <button on:click={handleGoogleSignIn} class="google-signin-btn" style="margin:0 0 26px">
@@ -569,8 +568,8 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin: 10px 0 34px;
-    padding: 2px 4px;
+    margin: 8px 0 0;
+    padding: 0;
     background: transparent;
     border: none;
     cursor: pointer;
