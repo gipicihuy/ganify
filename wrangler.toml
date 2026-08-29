@@ -6,3 +6,8 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 binding = "ASSETS"
 directory = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ganify-db"
+database_id = "4c07871a-02c8-4128-9c9b-f143cd6cc664"
