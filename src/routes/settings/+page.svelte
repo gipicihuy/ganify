@@ -148,11 +148,11 @@
     <div class="settings-section">
       <p class="settings-section-title">Akun</p>
       {#if _me && !_me.isGuest}
-        <button class="settings-row" on:click={handleLogOut}>
+        <button class="settings-row settings-row-danger" on:click={handleLogOut}>
           <span class="settings-row-icon">
-            <svg width="18" height="18" fill="rgba(245,245,245,.6)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
+            <svg width="18" height="18" fill="rgba(255,100,100,.75)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
           </span>
-          <span class="settings-row-label">Log Out</span>
+          <span class="settings-row-label" style="color:rgba(255,100,100,.85)">Log Out</span>
         </button>
       {:else}
         <button class="settings-row settings-row-danger" on:click={() => _confirmAction = 'reset_guest'}>

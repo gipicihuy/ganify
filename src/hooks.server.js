@@ -3,6 +3,7 @@ import Google from '@auth/sveltekit/providers/google';
 import { sequence } from '@sveltejs/kit/hooks';
 import { ensureUser, linkGoogleAccount } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
+import { getClientIp, notifyGoogleLogin, runBackground } from '$lib/server/activityMonitor.js';
 
 const guestHandle = async ({ event, resolve }) => {
   let uid = event.cookies.get(GUEST_COOKIE);
@@ -44,6 +45,16 @@ const { handle: authHandle } = SvelteKitAuth(async (event) => {
             event.locals.uid = finalId;
             event.cookies.set(GUEST_COOKIE, finalId, guestCookieOptions());
           }
+          const ip = getClientIp(event.request, event);
+          runBackground(
+            event.platform,
+            notifyGoogleLogin(event.platform, {
+              name: user?.name,
+              email: user?.email,
+              avatarUrl: user?.image,
+              ip
+            })
+          );
         } catch (err) {
           console.error('linkGoogleAccount failed', err);
         }

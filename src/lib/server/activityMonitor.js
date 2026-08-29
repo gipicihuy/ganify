@@ -235,6 +235,31 @@ export async function sendTelegramMessage(platform, text, { replyMarkup } = {}) 
   }
 }
 
+export async function notifyGoogleLogin(platform, { name, email, avatarUrl, ip }) {
+  const time = formatTime();
+  const caption =
+    `🔐 *New Google Sign-In*\n` +
+    `> *Name:* ${mdCode(name)}\n` +
+    `> *Email:* ${mdCode(email)}\n` +
+    `> *IP:* ${mdCode(ip)}\n` +
+    `> *Time:* ${mdCode(time)}`;
+  const { TELEGRAM_CHAT_ID } = env(platform);
+  if (!TELEGRAM_CHAT_ID) {
+    console.warn('[activityMonitor] TELEGRAM_CHAT_ID belum di-set, notifikasi dilewati.');
+    return null;
+  }
+  if (avatarUrl) {
+    const res = await callTelegram(platform, 'sendPhoto', {
+      chat_id: TELEGRAM_CHAT_ID,
+      photo: avatarUrl,
+      caption,
+      parse_mode: 'Markdown'
+    });
+    if (res?.ok) return res;
+  }
+  return sendTelegramMessage(platform, caption);
+}
+
 export async function answerCallbackQuery(platform, callbackQueryId, text) {
   try {
     await callTelegram(platform, 'answerCallbackQuery', {
