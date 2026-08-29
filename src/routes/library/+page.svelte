@@ -168,6 +168,7 @@
       <button class="lib-primary-tab" class:active={_tab === 'liked'} on:click={() => _tab='liked'}>
         Disukai
       </button>
+      <div class="lib-primary-indicator" style="transform:translateX({_tab==='recent' ? 0 : _tab==='playlist' ? 100 : 200}%)"></div>
     </div>
 
     {#if _tab === 'recent'}
@@ -637,13 +638,13 @@
   @keyframes _ms { to { transform: rotate(360deg); } }
 
   .lib-primary-nav {
+    position: relative;
     display: flex;
-    gap: 22px;
     border-bottom: 1px solid rgba(255,255,255,.08);
   }
 
   .lib-primary-tab {
-    position: relative;
+    flex: 1 1 0;
     background: none;
     border: none;
     cursor: pointer;
@@ -655,49 +656,45 @@
     transition: color .18s ease;
   }
 
-  .lib-primary-tab::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 2px;
-    border-radius: 2px;
-    background: #FFFFFF;
-    transform: scaleX(0);
-    transition: transform .18s ease;
-  }
-
   .lib-primary-tab.active {
     color: #FFFFFF;
     font-weight: 700;
   }
 
-  .lib-primary-tab.active::after {
-    transform: scaleX(1);
+  .lib-primary-indicator {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: calc(100% / 3);
+    height: 2px;
+    border-radius: 2px;
+    background: #FFFFFF;
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
   }
 
   .lib-sub-nav {
     display: flex;
-    gap: 18px;
-    margin-top: 16px;
+    gap: 6px;
+    margin-top: 14px;
   }
 
   .lib-sub-tab {
-    background: none;
-    border: none;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 99px;
     cursor: pointer;
-    padding: 0;
+    padding: 4px 11px;
     font-family: 'Quicksand', sans-serif;
-    font-size: .72rem;
-    font-weight: 500;
-    color: rgba(245,245,245,.32);
+    font-size: .68rem;
+    font-weight: 600;
+    color: rgba(245,245,245,.35);
     white-space: nowrap;
-    transition: color .15s ease;
+    transition: all .15s ease;
   }
 
   .lib-sub-tab.active {
-    color: rgba(245,245,245,.85);
-    font-weight: 700;
+    background: rgba(255,255,255,.09);
+    border-color: rgba(255,255,255,.28);
+    color: rgba(245,245,245,.9);
   }
 </style>
