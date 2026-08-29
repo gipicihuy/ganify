@@ -49,8 +49,8 @@
 
   function _openMenu(e, item) {
     e.stopPropagation();
-    _playlists.set(getPlaylists());
     _showMenu.set({ title: item.title, videoId: item.videoId, thumbnail: item.thumbnail || _data.cover, duration: item.duration, author: item.artist });
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
 </script>
 

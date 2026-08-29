@@ -223,8 +223,8 @@
 
   function _openMenu(e, item) {
     e.stopPropagation();
-    _playlists.set(getPlaylists());
     _showMenu.set(item);
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
 
   function _highlight(text, query) {

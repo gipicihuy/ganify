@@ -1,104 +1,63 @@
-const _RP_KEY = '_msc_rp';
-const _PL_KEY = '_msc_pl';
-const _LK_KEY = '_msc_lk';
-const _RP_MAX = 30;
-
-export function getLikedSongs() {
-  try {
-    const r = localStorage.getItem(_LK_KEY);
-    return r ? JSON.parse(r) : [];
-  } catch { return []; }
+async function _req(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`request failed: ${url}`);
+  return res.json();
 }
 
-export function isSongLiked(videoId) {
-  return getLikedSongs().some(t => t.videoId === videoId);
+function _jsonInit(method, body) {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  };
 }
 
-// Toggle status suka lagu ini, simpan ke localStorage, dan balikin daftar
-// terbaru + status suka setelah toggle (dipakai buat sinkronin store).
-export function toggleLikeSong(track) {
-  let list = getLikedSongs();
-  const liked = list.some(t => t.videoId === track.videoId);
-  if (liked) {
-    list = list.filter(t => t.videoId !== track.videoId);
-  } else {
-    list = [{ ...track, likedAt: Date.now() }, ...list];
-  }
-  try { localStorage.setItem(_LK_KEY, JSON.stringify(list)); } catch {}
-  return { list, liked: !liked };
+export async function getLikedSongs() {
+  const data = await _req('/api/liked');
+  return data.list || [];
 }
 
-export function getRecentlyPlayed() {
-  try {
-    const r = localStorage.getItem(_RP_KEY);
-    return r ? JSON.parse(r) : [];
-  } catch { return []; }
+export async function toggleLikeSong(track) {
+  const data = await _req('/api/liked', _jsonInit('POST', track));
+  return { list: data.list || [], liked: !!data.liked };
 }
 
-export function addRecentlyPlayed(track) {
-  try {
-    let list = getRecentlyPlayed();
-    list = list.filter(t => t.videoId !== track.videoId);
-    list.unshift({ ...track, playedAt: Date.now() });
-    if (list.length > _RP_MAX) list = list.slice(0, _RP_MAX);
-    localStorage.setItem(_RP_KEY, JSON.stringify(list));
-  } catch {}
+export async function getRecentlyPlayed() {
+  const data = await _req('/api/history');
+  return data.list || [];
 }
 
-export function removeRecentlyPlayed(videoId) {
-  try {
-    let list = getRecentlyPlayed();
-    list = list.filter(t => t.videoId !== videoId);
-    localStorage.setItem(_RP_KEY, JSON.stringify(list));
-  } catch {}
+export async function addRecentlyPlayed(track) {
+  await _req('/api/history', _jsonInit('POST', track));
 }
 
-export function getPlaylists() {
-  try {
-    const r = localStorage.getItem(_PL_KEY);
-    return r ? JSON.parse(r) : [];
-  } catch { return []; }
+export async function removeRecentlyPlayed(videoId) {
+  await _req('/api/history', _jsonInit('DELETE', { videoId }));
 }
 
-function savePlaylists(pls) {
-  try { localStorage.setItem(_PL_KEY, JSON.stringify(pls)); } catch {}
+export async function getPlaylists() {
+  const data = await _req('/api/playlists');
+  return data.list || [];
 }
 
-export function createPlaylist(name) {
-  const pls = getPlaylists();
-  const pl = { id: `pl_${Date.now()}`, name, tracks: [], createdAt: Date.now() };
-  pls.unshift(pl);
-  savePlaylists(pls);
-  return pl;
+export async function createPlaylist(name) {
+  const data = await _req('/api/playlists', _jsonInit('POST', { name }));
+  return data.playlist;
 }
 
-export function deletePlaylist(id) {
-  const pls = getPlaylists().filter(p => p.id !== id);
-  savePlaylists(pls);
+export async function deletePlaylist(id) {
+  await _req(`/api/playlists/${id}`, { method: 'DELETE' });
 }
 
-export function addTrackToPlaylist(playlistId, track) {
-  const pls = getPlaylists();
-  const pl = pls.find(p => p.id === playlistId);
-  if (!pl) return false;
-  if (pl.tracks.some(t => t.videoId === track.videoId)) return false;
-  pl.tracks.unshift(track);
-  savePlaylists(pls);
-  return true;
+export async function renamePlaylist(id, name) {
+  await _req(`/api/playlists/${id}`, _jsonInit('PATCH', { name }));
 }
 
-export function removeTrackFromPlaylist(playlistId, videoId) {
-  const pls = getPlaylists();
-  const pl = pls.find(p => p.id === playlistId);
-  if (!pl) return;
-  pl.tracks = pl.tracks.filter(t => t.videoId !== videoId);
-  savePlaylists(pls);
+export async function addTrackToPlaylist(playlistId, track) {
+  const data = await _req(`/api/playlists/${playlistId}/tracks`, _jsonInit('POST', track));
+  return !!data.added;
 }
 
-export function renamePlaylist(id, name) {
-  const pls = getPlaylists();
-  const pl = pls.find(p => p.id === id);
-  if (!pl) return;
-  pl.name = name;
-  savePlaylists(pls);
+export async function removeTrackFromPlaylist(playlistId, videoId) {
+  await _req(`/api/playlists/${playlistId}/tracks`, _jsonInit('DELETE', { videoId }));
 }

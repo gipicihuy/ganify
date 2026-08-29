@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { _q8z, _p1k, _x9a, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _likedSongs } from '$lib/store.js';
-  import { getRecentlyPlayed, getPlaylists, createPlaylist, deletePlaylist, removeRecentlyPlayed, getLikedSongs, toggleLikeSong } from '$lib/playlist.js';
+  import { getRecentlyPlayed, getPlaylists, createPlaylist, deletePlaylist, removeRecentlyPlayed, getLikedSongs, toggleLikeSong, renamePlaylist, removeTrackFromPlaylist } from '$lib/playlist.js';
 
   let _tab = 'recent';
   let _subTab = 'semua';
@@ -48,16 +48,22 @@
   }
 
   onMount(() => {
-    _recentlyPlayed.set(getRecentlyPlayed());
-    _playlists.set(getPlaylists());
-    _likedSongs.set(getLikedSongs());
+    getRecentlyPlayed().then((list) => _recentlyPlayed.set(list)).catch(() => {});
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
+    getLikedSongs().then((list) => _likedSongs.set(list)).catch(() => {});
     const t = setInterval(() => { _now = Date.now(); }, 60000);
     return () => clearInterval(t);
   });
 
-  function _doUnlike(track) {
-    const { list } = toggleLikeSong(track);
-    _likedSongs.set(list);
+  async function _doUnlike(track) {
+    const previous = $_likedSongs;
+    _likedSongs.set(previous.filter((t) => t.videoId !== track.videoId));
+    try {
+      const { list } = await toggleLikeSong(track);
+      _likedSongs.set(list);
+    } catch {
+      _likedSongs.set(previous);
+    }
   }
 
   function _pl(item, list, idx) {
@@ -73,24 +79,38 @@
     _showMenu.set(item);
   }
 
-  function _doCreatePl() {
-    if (!_newPlName.trim()) return;
-    createPlaylist(_newPlName.trim());
-    _playlists.set(getPlaylists());
+  async function _doCreatePl() {
+    const name = _newPlName.trim();
+    if (!name) return;
     _newPlName = '';
     _showNewPl = false;
+    try {
+      await createPlaylist(name);
+      _playlists.set(await getPlaylists());
+    } catch {}
   }
 
-  function _doDeletePl(id) {
-    deletePlaylist(id);
-    _playlists.set(getPlaylists());
+  async function _doDeletePl(id) {
+    const previous = $_playlists;
+    _playlists.set(previous.filter((p) => p.id !== id));
     _showDelConfirm = null;
     if (_openedPlaylist?.id === id) _openedPlaylist = null;
+    try {
+      await deletePlaylist(id);
+    } catch {
+      _playlists.set(previous);
+    }
   }
 
-  function _doRemoveRecent(videoId) {
-    removeRecentlyPlayed(videoId);
-    _recentlyPlayed.set(getRecentlyPlayed());
+  async function _doRemoveRecent(videoId) {
+    const previous = $_recentlyPlayed;
+    _recentlyPlayed.set(previous.filter((t) => t.videoId !== videoId));
+    try {
+      await removeRecentlyPlayed(videoId);
+      _recentlyPlayed.set(await getRecentlyPlayed());
+    } catch {
+      _recentlyPlayed.set(previous);
+    }
   }
 
   function _openPl(pl) {
@@ -98,26 +118,45 @@
     _openedPlaylist = found ? { ...found, tracks: [...(found.tracks || [])] } : null;
   }
 
-  function _doRename() {
-    if (!_renameName.trim() || !_openedPlaylist) return;
-    import('$lib/playlist.js').then(m => {
-      m.renamePlaylist(_openedPlaylist.id, _renameName.trim());
-      _playlists.set(getPlaylists());
-      const updated = $_playlists.find(p => p.id === _openedPlaylist.id);
+  async function _doRename() {
+    const name = _renameName.trim();
+    if (!name || !_openedPlaylist) return;
+    const previous = $_playlists;
+    const targetId = _openedPlaylist.id;
+    _playlists.set(previous.map((p) => (p.id === targetId ? { ...p, name } : p)));
+    _openedPlaylist = { ..._openedPlaylist, name };
+    _showRename = false;
+    _renameName = '';
+    try {
+      await renamePlaylist(targetId, name);
+      _playlists.set(await getPlaylists());
+      const updated = $_playlists.find((p) => p.id === targetId);
       _openedPlaylist = updated ? { ...updated, tracks: [...(updated.tracks || [])] } : null;
-      _showRename = false;
-      _renameName = '';
-    });
+    } catch {
+      _playlists.set(previous);
+      const reverted = previous.find((p) => p.id === targetId);
+      _openedPlaylist = reverted ? { ...reverted, tracks: [...(reverted.tracks || [])] } : null;
+    }
   }
 
-  function _removeFromPl(videoId) {
+  async function _removeFromPl(videoId) {
     if (!_openedPlaylist) return;
-    import('$lib/playlist.js').then(m => {
-      m.removeTrackFromPlaylist(_openedPlaylist.id, videoId);
-      _playlists.set(getPlaylists());
-      const refreshed = $_playlists.find(p => p.id === _openedPlaylist.id);
+    const previous = $_playlists;
+    const targetId = _openedPlaylist.id;
+    _playlists.set(
+      previous.map((p) => (p.id === targetId ? { ...p, tracks: (p.tracks || []).filter((t) => t.videoId !== videoId) } : p))
+    );
+    _openedPlaylist = { ..._openedPlaylist, tracks: (_openedPlaylist.tracks || []).filter((t) => t.videoId !== videoId) };
+    try {
+      await removeTrackFromPlaylist(targetId, videoId);
+      _playlists.set(await getPlaylists());
+      const refreshed = $_playlists.find((p) => p.id === targetId);
       _openedPlaylist = refreshed ? { ...refreshed, tracks: [...(refreshed.tracks || [])] } : null;
-    });
+    } catch {
+      _playlists.set(previous);
+      const reverted = previous.find((p) => p.id === targetId);
+      _openedPlaylist = reverted ? { ...reverted, tracks: [...(reverted.tracks || [])] } : null;
+    }
   }
 
   $: _rp = $_recentlyPlayed;

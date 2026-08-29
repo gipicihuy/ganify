@@ -37,8 +37,8 @@
 
   function _openMenu(e, item) {
     e.stopPropagation();
-    _playlists.set(getPlaylists());
     _showMenu.set({ ...item, author: item.artist });
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
 </script>
 

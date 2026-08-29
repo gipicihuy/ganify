@@ -291,8 +291,8 @@
 
   function _openMenu(e, item) {
     e.stopPropagation();
-    _playlists.set(getPlaylists());
     _showMenu.set(item);
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
 
   let _showNewPl = false;
@@ -308,12 +308,15 @@
     return { destroy() { node.removeEventListener('focus', onFocus); } };
   }
 
-  function _doCreatePl() {
-    if (!_newPlName.trim()) return;
-    createPlaylist(_newPlName.trim());
-    _playlists.set(getPlaylists());
+  async function _doCreatePl() {
+    const name = _newPlName.trim();
+    if (!name) return;
     _newPlName = '';
     _showNewPl = false;
+    try {
+      await createPlaylist(name);
+      _playlists.set(await getPlaylists());
+    } catch {}
   }
 </script>
 

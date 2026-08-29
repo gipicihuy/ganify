@@ -5,7 +5,8 @@
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics, _likedSongs } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
   import { _getStreamUrl, _getLyrics, _getSongInfo, _fetchAudioBytes, _fetchCoverBytes } from '$lib/api.js';
-  import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong } from '$lib/playlist.js';
+  import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong, getRecentlyPlayed } from '$lib/playlist.js';
+  import BindPrompt from '$lib/BindPrompt.svelte';
   import { onDestroy, onMount, tick } from 'svelte';
   import { ID3Writer } from 'browser-id3-writer';
 
@@ -146,10 +147,10 @@
   }
 
   function _openMenuSheet(item) {
-    _playlists.set(getPlaylists());
     _showMenu.set(item);
     _showNewPlInSheet = false;
     _newPlName = '';
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
 
   function _closeMenuSheet() {
@@ -277,35 +278,59 @@
     }
   }
 
-  function _doAddToPl(pl) {
+  async function _doAddToPl(pl) {
     const track = $_showMenu;
     if (!track) return;
-    const ok = addTrackToPlaylist(pl.id, track);
-    _playlists.set(getPlaylists());
-    _showFeedback(ok ? `Ditambahkan ke "${pl.name}"` : `Sudah ada di "${pl.name}"`);
+    const previous = $_playlists;
+    const alreadyHas = (pl.tracks || []).some((t) => t.videoId === track.videoId);
+    if (!alreadyHas) {
+      _playlists.set(
+        previous.map((p) => (p.id === pl.id ? { ...p, tracks: [track, ...(p.tracks || [])] } : p))
+      );
+    }
+    _showFeedback(alreadyHas ? `Sudah ada di "${pl.name}"` : `Ditambahkan ke "${pl.name}"`);
     _closeMenuSheet();
+    if (alreadyHas) return;
+    try {
+      await addTrackToPlaylist(pl.id, track);
+      _playlists.set(await getPlaylists());
+    } catch {
+      _playlists.set(previous);
+    }
   }
 
-  function _doCreateAndAdd() {
-    if (!_newPlName.trim()) return;
-    const pl = createPlaylist(_newPlName.trim());
-    addTrackToPlaylist(pl.id, $_showMenu);
-    _playlists.set(getPlaylists());
-    _showFeedback(`Ditambahkan ke "${pl.name}"`);
+  async function _doCreateAndAdd() {
+    const name = _newPlName.trim();
+    const track = $_showMenu;
+    if (!name || !track) return;
     _newPlName = '';
     _showNewPlInSheet = false;
+    _showFeedback(`Ditambahkan ke "${name}"`);
     _closeMenuSheet();
+    try {
+      const pl = await createPlaylist(name);
+      await addTrackToPlaylist(pl.id, track);
+      _playlists.set(await getPlaylists());
+    } catch {
+      _showFeedback('Gagal membuat playlist');
+    }
   }
 
-  function _doCreateAndAddModal() {
-    if (!_newPlName.trim() || !_pendingTrack) return;
-    const pl = createPlaylist(_newPlName.trim());
-    addTrackToPlaylist(pl.id, _pendingTrack);
-    _playlists.set(getPlaylists());
-    _showFeedback(`Ditambahkan ke "${pl.name}"`);
+  async function _doCreateAndAddModal() {
+    const name = _newPlName.trim();
+    const track = _pendingTrack;
+    if (!name || !track) return;
     _newPlName = '';
     _showNewPlModal = false;
     _pendingTrack = null;
+    _showFeedback(`Ditambahkan ke "${name}"`);
+    try {
+      const pl = await createPlaylist(name);
+      await addTrackToPlaylist(pl.id, track);
+      _playlists.set(await getPlaylists());
+    } catch {
+      _showFeedback('Gagal membuat playlist');
+    }
   }
 
   function _onPlayerTouchStart(e) {
@@ -477,8 +502,8 @@
 
   onMount(() => {
     _mounted = true;
-    _playlists.set(getPlaylists());
-    _likedSongs.set(getLikedSongs());
+    getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
+    getLikedSongs().then((list) => _likedSongs.set(list)).catch(() => {});
     if ($_q8z && $_q8z !== _prev) {
       _prev = $_q8z;
       _elapsed = 0;
@@ -500,10 +525,20 @@
     }
   });
 
-  function _toggleLike(track) {
+  async function _toggleLike(track) {
     if (!track) return;
-    const { list } = toggleLikeSong(track);
-    _likedSongs.set(list);
+    const previous = $_likedSongs;
+    const wasLiked = previous.some((t) => t.videoId === track.videoId);
+    const optimistic = wasLiked
+      ? previous.filter((t) => t.videoId !== track.videoId)
+      : [{ ...track, likedAt: Date.now() }, ...previous];
+    _likedSongs.set(optimistic);
+    try {
+      const { list } = await toggleLikeSong(track);
+      _likedSongs.set(list);
+    } catch {
+      _likedSongs.set(previous);
+    }
   }
 
   $: _isLiked = $_q8z ? $_likedSongs.some(t => t.videoId === $_q8z.videoId) : false;
@@ -525,10 +560,14 @@
     _loadLyrics($_q8z);
     _similarTrackId = $_q8z.videoId;
     _loadSimilar($_q8z);
-    addRecentlyPlayed($_q8z);
+    const _playedTrack = $_q8z;
     _recentlyPlayed.set(
-      (() => { try { return JSON.parse(localStorage.getItem('_msc_rp') || '[]'); } catch { return []; } })()
+      [{ ...(_playedTrack), playedAt: Date.now() }, ...$_recentlyPlayed.filter((t) => t.videoId !== _playedTrack.videoId)]
     );
+    addRecentlyPlayed(_playedTrack)
+      .then(() => getRecentlyPlayed())
+      .then((list) => _recentlyPlayed.set(list))
+      .catch(() => {});
   }
 
   async function _loadAndPlay(track) {
@@ -736,6 +775,8 @@
   on:durationchange={_onDurationKnown}
   on:timeupdate={_onTimeUpdate}
 ></audio>
+
+<BindPrompt />
 
 <div style="padding-bottom:{$_q8z ? '11rem' : '4.5rem'}">
   <slot />
@@ -1210,7 +1251,15 @@
         {/if}
 
         {#if $_showMenu?._ctx === 'recent'}
-          <button on:click={() => { const vid = $_showMenu.videoId; _closeMenuSheet(); import('$lib/playlist.js').then(m => { m.removeRecentlyPlayed(vid); _recentlyPlayed.set(m.getRecentlyPlayed()); }); }}
+          <button on:click={() => {
+              const vid = $_showMenu.videoId;
+              _closeMenuSheet();
+              const previous = $_recentlyPlayed;
+              _recentlyPlayed.set(previous.filter((t) => t.videoId !== vid));
+              import('$lib/playlist.js').then((m) =>
+                m.removeRecentlyPlayed(vid).then(() => m.getRecentlyPlayed()).then((list) => _recentlyPlayed.set(list))
+              ).catch(() => _recentlyPlayed.set(previous));
+            }}
             style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 0;
               background:none;border:none;cursor:pointer;text-align:left;margin-top:4px">
             <svg width="18" height="18" fill="rgba(255,100,100,.6)" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
