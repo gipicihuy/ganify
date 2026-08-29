@@ -192,41 +192,44 @@
       </div>
     </div>
 
-    {#if !_me || _me.isGuest}
-      <button on:click={handleGoogleSignIn} class="google-signin-btn" style="margin:0 0 26px">
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.8z"/>
-          <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.92l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.11C3.25 21.3 7.31 24 12 24z"/>
-          <path fill="#FBBC05" d="M5.27 14.27a7.2 7.2 0 0 1-.38-2.27c0-.79.14-1.56.38-2.27V6.62H1.27A11.96 11.96 0 0 0 0 12c0 1.94.47 3.77 1.27 5.38l4-3.11z"/>
-          <path fill="#EA4335" d="M12 4.77c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.27 6.62l4 3.11c.95-2.85 3.6-4.96 6.73-4.96z"/>
-        </svg>
-        <span>Masuk dengan Google</span>
-      </button>
-    {/if}
-
     <p class="settings-section-title">Account</p>
     <div class="settings-group">
-      <button class="settings-item" on:click={_openProfile}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">Profile</span>
-        </span>
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-      <button class="settings-item" on:click={_openConnectedAccounts}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">Connected Accounts</span>
-        </span>
-        {#if _me && !_me.isGuest}
+      {#if _me && !_me.isGuest}
+        <button class="settings-item" on:click={_openProfile}>
+          <span class="settings-item-icon">
+            <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">Profile</span>
+          </span>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button class="settings-item" on:click={_openConnectedAccounts}>
+          <span class="settings-item-icon">
+            <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">Connected Accounts</span>
+          </span>
           <span class="settings-item-value">Google</span>
-        {/if}
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      {:else}
+        <button class="settings-item" on:click={handleGoogleSignIn}>
+          <span class="settings-item-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.8z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.92l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.11C3.25 21.3 7.31 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.27 14.27a7.2 7.2 0 0 1-.38-2.27c0-.79.14-1.56.38-2.27V6.62H1.27A11.96 11.96 0 0 0 0 12c0 1.94.47 3.77 1.27 5.38l4-3.11z"/>
+              <path fill="#EA4335" d="M12 4.77c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.27 6.62l4 3.11c.95-2.85 3.6-4.96 6.73-4.96z"/>
+            </svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">Sign In</span>
+          </span>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      {/if}
     </div>
 
     <p class="settings-section-title">Data</p>
