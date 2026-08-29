@@ -82,14 +82,26 @@ export async function linkGoogleAccount(db, guestId, googleId, profile) {
 
   await mergeGuestIntoAccount(db, guestId, existing.id);
 
+  // If the user (or an admin) has set a custom display name, don't let a
+  // fresh Google sign-in silently overwrite it back to the Google profile
+  // name - that was happening on every re-login/session refresh before.
+  const nextName = existing.name_locked ? existing.name : (profile.name || existing.name);
+
   await db
     .prepare(
       'UPDATE users SET email = ?, name = ?, avatar_url = ?, last_seen_at = ? WHERE id = ?'
     )
-    .bind(profile.email || existing.email, profile.name || existing.name, profile.image || existing.avatar_url, now, existing.id)
+    .bind(profile.email || existing.email, nextName, profile.image || existing.avatar_url, now, existing.id)
     .run();
 
   return existing.id;
+}
+
+export async function setUserName(db, id, name) {
+  const trimmed = String(name || '').trim().slice(0, 60);
+  if (!trimmed) return false;
+  await db.prepare('UPDATE users SET name = ?, name_locked = 1 WHERE id = ?').bind(trimmed, id).run();
+  return true;
 }
 
 async function mergeGuestIntoAccount(db, fromId, toId) {
