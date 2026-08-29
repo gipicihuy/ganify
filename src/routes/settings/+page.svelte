@@ -156,7 +156,7 @@
       <h1 style="font-size:1.35rem;font-weight:700;color:#FFFFFF;margin:0">Settings</h1>
     </div>
 
-    <div style="display:flex;align-items:center;gap:14px;padding:2px 4px 22px">
+    <div style="display:flex;align-items:center;gap:14px;padding:2px 4px 4px">
       <div style="width:52px;height:52px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         {#if _me && !_me.isGuest && _me.avatarUrl}
           <img src={_me.avatarUrl} alt={_me.name || 'Avatar'} style="width:100%;height:100%;object-fit:cover" />
@@ -177,14 +177,7 @@
     </div>
 
     {#if _me && !_me.isGuest}
-      <button class="settings-item settings-item-logout" on:click={handleLogOut}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="rgba(255,100,100,.8)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title" style="color:rgba(255,100,100,.9)">Log Out</span>
-        </span>
-      </button>
+      <button class="account-logout-btn" on:click={handleLogOut}>Log Out</button>
     {/if}
 
     {#if !_me || _me.isGuest}
@@ -569,16 +562,22 @@
     flex-shrink: 0;
   }
 
-  .settings-item-logout {
-    margin: 2px 0 24px;
-    padding: 13px 4px;
-    border-top: 1px solid rgba(255,100,100,.16);
-    border-bottom: 1px solid rgba(255,100,100,.16);
-    border-radius: 0;
+  .account-logout-btn {
+    display: block;
+    margin: 0 0 32px;
+    padding: 4px 4px 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .8rem;
+    font-weight: 700;
+    color: rgba(255,100,100,.9);
   }
 
-  .settings-item-logout:hover {
-    background: rgba(255,100,100,.05);
+  .account-logout-btn:hover {
+    color: rgba(255,100,100,1);
   }
 
   .sheet-danger-row {
