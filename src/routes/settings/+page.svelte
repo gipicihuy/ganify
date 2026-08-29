@@ -177,7 +177,10 @@
     </div>
 
     {#if _me && !_me.isGuest}
-      <button class="account-logout-btn" on:click={handleLogOut}>Log Out</button>
+      <button class="account-logout-btn" on:click={handleLogOut}>
+        <svg width="17" height="17" fill="rgba(255,100,100,.9)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
+        <span>Log Out</span>
+      </button>
     {/if}
 
     {#if !_me || _me.isGuest}
@@ -563,20 +566,25 @@
   }
 
   .account-logout-btn {
-    display: block;
-    margin: 0 0 32px;
-    padding: 4px 4px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 34px;
+    padding: 2px 4px;
     background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
+  }
+
+  .account-logout-btn span {
     font-family: 'Quicksand', sans-serif;
     font-size: .8rem;
     font-weight: 700;
     color: rgba(255,100,100,.9);
   }
 
-  .account-logout-btn:hover {
+  .account-logout-btn:hover span {
     color: rgba(255,100,100,1);
   }
 
