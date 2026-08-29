@@ -48,11 +48,6 @@
       title: 'Hapus Semua Riwayat?',
       desc: 'Riwayat pemutaran lagu akan dihapus permanen dan tidak bisa dikembalikan.',
       confirmLabel: 'Hapus'
-    },
-    reset_guest: {
-      title: 'Reset Akun Tamu?',
-      desc: 'Semua lagu disukai, playlist, dan riwayat di perangkat ini akan dihapus dan kamu mulai dari awal.',
-      confirmLabel: 'Reset'
     }
   };
 
@@ -62,13 +57,9 @@
       await fetch('/api/me', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action === 'reset_guest' ? 'delete_account' : action })
+        body: JSON.stringify({ action })
       });
       _confirmAction = null;
-      if (action === 'reset_guest') {
-        location.href = '/';
-        return;
-      }
       _showToast(action === 'clear_liked' ? 'Semua lagu disukai dihapus' : 'Riwayat dihapus');
     } catch {
       _showToast('Gagal memproses, coba lagi');
@@ -144,24 +135,17 @@
       </button>
     </div>
 
-    <div class="settings-section">
-      <p class="settings-section-title">Akun</p>
-      {#if _me && !_me.isGuest}
+    {#if _me && !_me.isGuest}
+      <div class="settings-section">
+        <p class="settings-section-title">Akun</p>
         <button class="settings-row settings-row-danger" on:click={handleLogOut}>
           <span class="settings-row-icon">
             <svg width="18" height="18" fill="rgba(255,100,100,.75)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
           </span>
           <span class="settings-row-label" style="color:rgba(255,100,100,.85)">Log Out</span>
         </button>
-      {:else}
-        <button class="settings-row settings-row-danger" on:click={() => _confirmAction = 'reset_guest'}>
-          <span class="settings-row-icon">
-            <svg width="18" height="18" fill="rgba(255,100,100,.75)" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </span>
-          <span class="settings-row-label" style="color:rgba(255,100,100,.85)">Reset Akun Tamu</span>
-        </button>
-      {/if}
-    </div>
+      </div>
+    {/if}
 
     <div style="margin-top:24px;text-align:center">
       <span style="font-size:.68rem;color:rgba(255,255,255,.4);letter-spacing:.04em">&copy; 2026 Ganify. All rights reserved.</span>

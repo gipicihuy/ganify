@@ -5,21 +5,13 @@ import { ensureUser, linkGoogleAccount } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 import { getClientIp, notifyGoogleLogin, runBackground } from '$lib/server/activityMonitor.js';
 
-const guestHandle = async ({ event, resolve }) => {
+const initGuestHandle = async ({ event, resolve }) => {
   let uid = event.cookies.get(GUEST_COOKIE);
   if (!uid) {
     uid = crypto.randomUUID();
     event.cookies.set(GUEST_COOKIE, uid, guestCookieOptions());
   }
   event.locals.uid = uid;
-  const db = event.platform?.env?.DB;
-  if (db) {
-    try {
-      await ensureUser(db, uid);
-    } catch (err) {
-      console.error('ensureUser failed', err);
-    }
-  }
   return resolve(event);
 };
 
@@ -41,10 +33,7 @@ const { handle: authHandle } = SvelteKitAuth(async (event) => {
         if (!db || account?.provider !== 'google' || !account.providerAccountId) return true;
         try {
           const finalId = await linkGoogleAccount(db, event.locals.uid, account.providerAccountId, user);
-          if (finalId !== event.locals.uid) {
-            event.locals.uid = finalId;
-            event.cookies.set(GUEST_COOKIE, finalId, guestCookieOptions());
-          }
+          event.locals.ganifyLinkedUid = finalId;
           const ip = getClientIp(event.request, event);
           runBackground(
             event.platform,
@@ -60,12 +49,36 @@ const { handle: authHandle } = SvelteKitAuth(async (event) => {
         }
         return true;
       },
-      async session({ session }) {
-        session.uid = event.locals.uid;
+      async jwt({ token }) {
+        if (event.locals.ganifyLinkedUid) {
+          token.ganifyUid = event.locals.ganifyLinkedUid;
+        }
+        return token;
+      },
+      async session({ session, token }) {
+        if (token?.ganifyUid) session.ganifyUid = token.ganifyUid;
         return session;
       }
     }
   };
 });
 
-export const handle = sequence(guestHandle, authHandle);
+const reconcileGuestHandle = async ({ event, resolve }) => {
+  const db = event.platform?.env?.DB;
+  if (db) {
+    try {
+      const session = await event.locals.auth?.();
+      const targetUid = session?.ganifyUid;
+      if (targetUid && targetUid !== event.locals.uid) {
+        event.cookies.set(GUEST_COOKIE, targetUid, guestCookieOptions());
+        event.locals.uid = targetUid;
+      }
+      await ensureUser(db, event.locals.uid);
+    } catch (err) {
+      console.error('reconcileGuestHandle failed', err);
+    }
+  }
+  return resolve(event);
+};
+
+export const handle = sequence(initGuestHandle, authHandle, reconcileGuestHandle);
