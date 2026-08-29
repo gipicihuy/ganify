@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import { _q8z, _p1k, _x9a, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _likedSongs } from '$lib/store.js';
   import { getRecentlyPlayed, getPlaylists, createPlaylist, deletePlaylist, removeRecentlyPlayed, getLikedSongs, toggleLikeSong, renamePlaylist, removeTrackFromPlaylist } from '$lib/playlist.js';
 
@@ -48,6 +49,12 @@
   }
 
   onMount(() => {
+    // Deep-link dari menu lain (mis. Settings > History / Liked Songs) lewat
+    // ?tab=recent|playlist|liked, tanpa mengubah default tab 'recent'.
+    const _tabParam = $page.url.searchParams.get('tab');
+    if (_tabParam === 'recent' || _tabParam === 'playlist' || _tabParam === 'liked') {
+      _tab = _tabParam;
+    }
     getRecentlyPlayed().then((list) => _recentlyPlayed.set(list)).catch(() => {});
     getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
     getLikedSongs().then((list) => _likedSongs.set(list)).catch(() => {});
