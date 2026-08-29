@@ -4,6 +4,13 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { ensureUser, linkGoogleAccount } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 import { getClientIp, notifyGoogleLogin, runBackground } from '$lib/server/activityMonitor.js';
+import { guardApiRequest } from '$lib/server/apiGuard.js';
+
+const apiGuardHandle = async ({ event, resolve }) => {
+  const blocked = await guardApiRequest(event);
+  if (blocked) return blocked;
+  return resolve(event);
+};
 
 const initGuestHandle = async ({ event, resolve }) => {
   let uid = event.cookies.get(GUEST_COOKIE);
@@ -81,4 +88,4 @@ const reconcileGuestHandle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle = sequence(initGuestHandle, authHandle, reconcileGuestHandle);
+export const handle = sequence(apiGuardHandle, initGuestHandle, authHandle, reconcileGuestHandle);
