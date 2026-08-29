@@ -10,6 +10,8 @@
     "cf:deploy": "npm run build && wrangler pages deploy .svelte-kit/cloudflare"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@auth/sveltekit": "^1.11.3",
     "browser-id3-writer": "^6.4.0",
     "yt-search": "^2.13.1"
   },

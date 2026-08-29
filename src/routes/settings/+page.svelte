@@ -2,11 +2,14 @@
   Halaman ini nantinya jadi pusat akun & pengaturan pengguna, bukan cuma login.
   Rencana ke depan: sign in with Google, ganti nama tampilan, ganti/upload foto profil,
   preferensi kualitas audio, tema, notifikasi, hapus akun, dll.
-  Untuk sekarang masih tahap "coming soon" karena backend auth (Google OAuth) belum disambungkan.
+  Tombol Google sign-in sudah tersambung ke Auth.js (lihat src/hooks.server.js).
+  Fitur profil/pengaturan lain di bawah masih placeholder sampai skema user di database jadi.
 -->
 <script>
+  import { signIn } from '@auth/sveltekit/client';
+
   function handleGoogleSignIn() {
-    alert('Fitur sign in dengan Google segera hadir!');
+    signIn('google');
   }
 </script>
 
