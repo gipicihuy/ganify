@@ -176,6 +176,17 @@
       </div>
     </div>
 
+    {#if _me && !_me.isGuest}
+      <button class="settings-item settings-item-logout" on:click={handleLogOut}>
+        <span class="settings-item-icon">
+          <svg width="19" height="19" fill="rgba(255,100,100,.8)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
+        </span>
+        <span class="settings-item-text">
+          <span class="settings-item-title" style="color:rgba(255,100,100,.9)">Log Out</span>
+        </span>
+      </button>
+    {/if}
+
     {#if !_me || _me.isGuest}
       <button on:click={handleGoogleSignIn} class="google-signin-btn" style="margin:0 0 26px">
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -297,17 +308,6 @@
         <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
     </div>
-
-    {#if _me && !_me.isGuest}
-      <button class="settings-item settings-item-danger" on:click={handleLogOut}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="rgba(255,100,100,.8)" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L17.17 10H9v2h8.17l-1.58 1.59L17 15l4-4zM5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title" style="color:rgba(255,100,100,.9)">Log Out</span>
-        </span>
-      </button>
-    {/if}
 
     <div style="margin-top:26px;text-align:center">
       <span style="font-size:.68rem;color:rgba(255,255,255,.4);letter-spacing:.04em">&copy; 2026 Ganify. All rights reserved.</span>
@@ -569,14 +569,15 @@
     flex-shrink: 0;
   }
 
-  .settings-item-danger {
-    margin-top: 4px;
-    border-top: 1px solid rgba(255,100,100,.14);
+  .settings-item-logout {
+    margin: 2px 0 24px;
+    padding: 13px 4px;
+    border-top: 1px solid rgba(255,100,100,.16);
+    border-bottom: 1px solid rgba(255,100,100,.16);
     border-radius: 0;
-    padding-left: 4px;
   }
 
-  .settings-item-danger:hover {
+  .settings-item-logout:hover {
     background: rgba(255,100,100,.05);
   }
 
