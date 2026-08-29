@@ -21,6 +21,10 @@
     _toastTimer = setTimeout(() => { _toast = ''; }, 2400);
   }
 
+  function _handlePhotoTap() {
+    _showToast('Fitur ini akan segera hadir!');
+  }
+
   onMount(async () => {
     try {
       const res = await fetch('/api/me');
@@ -37,6 +41,8 @@
       _loading = false;
     }
   });
+
+  $: _dirty = _me && _nameInput.trim() && _nameInput.trim() !== _me.name;
 
   async function _saveName() {
     const trimmed = _nameInput.trim();
@@ -63,7 +69,7 @@
         return;
       }
       _me = { ..._me, name: trimmed };
-      _showToast('Nama berhasil diganti');
+      _showToast('Profil berhasil disimpan');
     } catch {
       _nameError = 'Gagal simpan, coba lagi';
     } finally {
@@ -72,64 +78,65 @@
   }
 </script>
 
-<div style="max-width:560px;margin:0 auto;padding:20px 16px 40px">
-
-  <button on:click={() => history.back()}
-    style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);cursor:pointer;color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;margin-bottom:22px">
-    <svg width="19" height="19" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-  </button>
+<div style="max-width:560px;margin:0 auto;padding-bottom:40px">
 
   {#if _loading}
-    <div style="min-height:40vh;display:flex;align-items:center;justify-content:center">
+    <div style="min-height:70vh;display:flex;align-items:center;justify-content:center">
       <div class="profile-spin"></div>
     </div>
   {:else if _me}
 
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:26px">
-      <div style="width:5px;height:26px;border-radius:3px;background:linear-gradient(to bottom,#FFFFFF,#E6E6E6);flex-shrink:0"></div>
-      <h1 style="font-size:1.35rem;font-weight:700;color:#FFFFFF;margin:0">Profile</h1>
+    <div class="profile-topbar">
+      <button on:click={() => history.back()} class="profile-back-btn" aria-label="Kembali">
+        <svg width="20" height="20" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <p class="profile-topbar-title">Edit Profil</p>
+      <button on:click={_saveName} disabled={!_dirty || _savingName} class="profile-save-btn"
+        style="opacity:{(!_dirty || _savingName) ? .35 : 1}">
+        {_savingName ? '...' : 'Simpan'}
+      </button>
     </div>
 
-    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:30px">
-      <div style="position:relative;width:96px;height:96px;margin-bottom:14px">
-        <div style="width:96px;height:96px;border-radius:24px;overflow:hidden;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center">
+    <div class="profile-hero">
+      <div class="profile-avatar-wrap">
+        <div class="profile-avatar">
           {#if _me.avatarUrl}
             <img src={_me.avatarUrl} alt={_me.name || 'Avatar'} style="width:100%;height:100%;object-fit:cover" />
           {:else}
-            <span style="font-size:1.8rem;font-weight:700;color:#FFFFFF">{_initials(_me.name) || '?'}</span>
+            <span style="font-size:2.1rem;font-weight:700;color:#FFFFFF">{_initials(_me.name) || '?'}</span>
           {/if}
         </div>
+        <button class="profile-avatar-cam" on:click={_handlePhotoTap} aria-label="Ganti foto profil">
+          <svg width="17" height="17" fill="none" stroke="#0D0D0D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/>
+            <circle cx="12" cy="14" r="3.5"/>
+          </svg>
+        </button>
       </div>
-      <p style="font-size:.72rem;color:rgba(245,245,245,.35);margin:0;text-align:center">Foto profil belum bisa diganti dari sini</p>
     </div>
 
-    <p class="profile-field-label">Nama</p>
-    <input
-      type="text"
-      bind:value={_nameInput}
-      maxlength="60"
-      placeholder="Nama kamu"
-      disabled={_savingName}
-      on:input={() => _nameError = ''}
-      on:keydown={(e) => e.key === 'Enter' && _saveName()}
-      style="width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;background:rgba(255,255,255,.06);
-        border:1px solid rgba(255,255,255,.15);color:#FFFFFF;font-family:'Quicksand',sans-serif;font-size:.88rem;
-        font-weight:600;outline:none;margin-bottom:6px" />
-    {#if _nameError}
-      <p style="font-size:.72rem;color:rgba(255,100,100,.85);margin:0 0 8px">{_nameError}</p>
-    {/if}
+    <div class="profile-fields">
+      <div class="profile-field">
+        <p class="profile-field-label">Username</p>
+        <input
+          type="text"
+          bind:value={_nameInput}
+          maxlength="60"
+          placeholder="Nama kamu"
+          disabled={_savingName}
+          on:input={() => _nameError = ''}
+          on:keydown={(e) => e.key === 'Enter' && _saveName()}
+          class="profile-field-input" />
+        {#if _nameError}
+          <p class="profile-field-error">{_nameError}</p>
+        {/if}
+      </div>
 
-    <p class="profile-field-label" style="margin-top:20px">Email</p>
-    <div style="padding:13px 14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)">
-      <span style="font-size:.84rem;font-weight:600;color:rgba(245,245,245,.55)">{_me.email || 'Tersambung dengan Google'}</span>
+      <div class="profile-field">
+        <p class="profile-field-label">Email</p>
+        <p class="profile-field-static">{_me.email || 'Tersambung dengan Google'}</p>
+      </div>
     </div>
-
-    <button disabled={_savingName || !_nameInput.trim() || _nameInput.trim() === _me.name} on:click={_saveName}
-      style="width:100%;margin-top:26px;padding:13px;border-radius:12px;background:rgba(255,255,255,.12);
-        border:1px solid rgba(255,255,255,.25);cursor:pointer;font-family:'Quicksand',sans-serif;
-        font-size:.85rem;font-weight:700;color:#FFFFFF;opacity:{(_savingName || !_nameInput.trim() || _nameInput.trim() === _me.name) ? 0.5 : 1}">
-      {_savingName ? 'Menyimpan...' : 'Simpan Perubahan'}
-    </button>
 
   {/if}
 
@@ -158,6 +165,100 @@
     to { transform: rotate(360deg); }
   }
 
+  .profile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 16px;
+    background: #101010;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+  }
+
+  .profile-back-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .profile-topbar-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin: 0;
+  }
+
+  .profile-save-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .82rem;
+    font-weight: 800;
+    letter-spacing: .03em;
+    color: #FFFFFF;
+    padding: 6px 4px;
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: right;
+  }
+
+  .profile-hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px 34px;
+    background: #101010;
+  }
+
+  .profile-avatar-wrap {
+    position: relative;
+    width: 108px;
+    height: 108px;
+  }
+
+  .profile-avatar {
+    width: 108px;
+    height: 108px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .profile-avatar-cam {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 3px solid #101010;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .profile-fields {
+    padding: 26px 20px 0;
+  }
+
+  .profile-field {
+    margin-bottom: 22px;
+  }
+
   .profile-field-label {
     font-size: .68rem;
     font-weight: 700;
@@ -165,5 +266,38 @@
     text-transform: uppercase;
     letter-spacing: .07em;
     margin: 0 0 8px 2px;
+  }
+
+  .profile-field-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 2px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,.15);
+    color: #FFFFFF;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .95rem;
+    font-weight: 700;
+    outline: none;
+  }
+
+  .profile-field-input:focus {
+    border-bottom-color: rgba(255,255,255,.5);
+  }
+
+  .profile-field-static {
+    margin: 0;
+    padding: 0 2px 10px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: .95rem;
+    font-weight: 700;
+    color: rgba(245,245,245,.5);
+  }
+
+  .profile-field-error {
+    font-size: .72rem;
+    color: rgba(255,100,100,.85);
+    margin: 8px 0 0 2px;
   }
 </style>
