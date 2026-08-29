@@ -3,16 +3,31 @@
   import { signOut } from '@auth/sveltekit/client';
 
   onMount(async () => {
+    // Reset app-level identity first: this is what actually makes /api/me
+    // report isGuest again. It must not be skipped even if signOut() below
+    // throws or hangs, otherwise the user still looks "logged in" after
+    // clicking Log Out.
     try {
-      await signOut({ redirect: false });
       await fetch('/api/me', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'log_out' })
       });
-    } finally {
-      location.href = '/';
+    } catch (err) {
+      console.error('logout: failed to reset app identity', err);
     }
+
+    // Clear the NextAuth session separately. Previously this was awaited
+    // with no try/catch before the fetch above, so any error here (or a
+    // slow/failed CSRF round-trip) aborted the whole flow and left the old
+    // ganify_uid cookie (and therefore the logged-in state) untouched.
+    try {
+      await signOut({ redirect: false });
+    } catch (err) {
+      console.error('logout: signOut() failed', err);
+    }
+
+    location.href = '/';
   });
 </script>
 
