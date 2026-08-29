@@ -185,7 +185,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Profile</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={_openConnectedAccounts}>
         <span class="settings-item-icon">
@@ -197,7 +197,7 @@
         {#if _me && !_me.isGuest}
           <span class="settings-item-value">Google</span>
         {/if}
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
     </div>
 
@@ -210,7 +210,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">History</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={() => goto('/library?tab=liked')}>
         <span class="settings-item-icon">
@@ -219,7 +219,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Liked Songs</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={() => _sheet = 'clearData'}>
         <span class="settings-item-icon">
@@ -228,7 +228,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Clear Data</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
     </div>
 
@@ -241,7 +241,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Appearance</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={() => _sheet = 'theme'}>
         <span class="settings-item-icon">
@@ -251,7 +251,7 @@
           <span class="settings-item-title">Theme</span>
         </span>
         <span class="settings-item-value">Dark</span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
     </div>
 
@@ -264,7 +264,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">About Ganify</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={() => goto('/settings/privacy')}>
         <span class="settings-item-icon">
@@ -273,7 +273,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Privacy Policy</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
       <button class="settings-item" on:click={() => goto('/settings/terms')}>
         <span class="settings-item-icon">
@@ -282,7 +282,7 @@
         <span class="settings-item-text">
           <span class="settings-item-title">Terms of Service</span>
         </span>
-        <svg class="settings-chevron" width="16" height="16" fill="rgba(245,245,245,.25)" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="rgba(245,245,245,.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </button>
     </div>
 
@@ -307,7 +307,7 @@
 {#if _editingName}
   <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
     on:click={() => { if (!_savingName) _editingName = false; }}>
-    <div style="width:100%;max-width:320px;background:#1c1c1c;border-radius:18px;padding:24px 20px;border:1px solid rgba(255,255,255,.12)"
+    <div style="width:100%;max-width:320px;max-height:85vh;overflow-y:auto;background:#1c1c1c;border-radius:18px;padding:24px 20px;border:1px solid rgba(255,255,255,.12)"
       on:click|stopPropagation>
       <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 14px">Ganti Nama</p>
       <input
@@ -342,7 +342,7 @@
 {#if _confirmAction}
   <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
     on:click={() => { if (!_processing) _confirmAction = null; }}>
-    <div style="width:100%;max-width:320px;background:#1c1c1c;border-radius:18px;padding:24px 20px;border:1px solid rgba(255,100,100,.2)"
+    <div style="width:100%;max-width:320px;max-height:85vh;overflow-y:auto;background:#1c1c1c;border-radius:18px;padding:24px 20px;border:1px solid rgba(255,100,100,.2)"
       on:click|stopPropagation>
       <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 8px">{_confirmCopy[_confirmAction].title}</p>
       <p style="font-size:.78rem;color:rgba(245,245,245,.45);margin:0 0 20px;line-height:1.5">{_confirmCopy[_confirmAction].desc}</p>
@@ -365,7 +365,7 @@
 {#if _sheet}
   <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
     on:click={() => { if (!_processing) _sheet = null; }}>
-    <div style="width:100%;max-width:340px;background:#1c1c1c;border-radius:18px;padding:22px 20px;border:1px solid rgba(255,255,255,.12)"
+    <div style="width:100%;max-width:340px;max-height:85vh;overflow-y:auto;background:#1c1c1c;border-radius:18px;padding:22px 20px;border:1px solid rgba(255,255,255,.12)"
       on:click|stopPropagation>
 
       {#if _sheet === 'account'}
