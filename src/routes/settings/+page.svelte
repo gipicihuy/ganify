@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
 
   let _loading = true;
@@ -13,6 +13,18 @@
   let _savingName = false;
   let _nameError = '';
   let _sheet = null; // 'account' | 'clearData' | 'appearance' | 'theme' | null
+
+  // Kunci scroll halaman di belakang selagi modal/sheet manapun terbuka,
+  // supaya yang ke-scroll cuma isi modal-nya, bukan konten Settings di
+  // belakangnya.
+  $: _modalOpen = _editingName || !!_confirmAction || !!_sheet;
+  $: if (typeof document !== 'undefined') {
+    document.body.style.overflow = _modalOpen ? 'hidden' : '';
+  }
+
+  onDestroy(() => {
+    if (typeof document !== 'undefined') document.body.style.overflow = '';
+  });
 
   function handleGoogleSignIn() {
     location.href = '/login';
