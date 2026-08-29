@@ -88,7 +88,7 @@
 
     <div class="profile-topbar">
       <button on:click={() => history.back()} class="profile-back-btn" aria-label="Kembali">
-        <svg width="20" height="20" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
       </button>
       <p class="profile-topbar-title">Edit Profil</p>
       <button on:click={_saveName} disabled={!_dirty || _savingName} class="profile-save-btn"
@@ -181,6 +181,7 @@
     background: rgba(255,255,255,.07);
     border: 1px solid rgba(255,255,255,.12);
     cursor: pointer;
+    color: rgba(255,255,255,.7);
     display: flex;
     align-items: center;
     justify-content: center;
