@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getUserById, getBindPromptState, dismissBindPrompt, clearLikedSongs, clearHistory, deleteAccountData, ensureUser } from '$lib/server/db.js';
+import { getUserById, getBindPromptState, dismissBindPrompt, clearLikedSongs, clearHistory, deleteAccountData, ensureUser, setUserName } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 
 export async function GET({ locals, platform }) {
@@ -38,6 +38,11 @@ export async function POST({ request, locals, platform, cookies }) {
     cookies.set(GUEST_COOKIE, newUid, guestCookieOptions());
     await ensureUser(db, newUid);
     locals.uid = newUid;
+  } else if (body.action === 'set_name') {
+    const user = await getUserById(db, locals.uid);
+    if (!user || user.is_guest) return json({ error: 'must be signed in' }, { status: 400 });
+    const ok = await setUserName(db, locals.uid, body.name);
+    if (!ok) return json({ error: 'invalid name' }, { status: 400 });
   }
   return json({ ok: true });
 }
