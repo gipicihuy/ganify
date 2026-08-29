@@ -268,3 +268,26 @@ export async function removeTrackFromPlaylist(db, userId, playlistId, videoId) {
     .bind(playlistId, videoId)
     .run();
 }
+
+export async function clearLikedSongs(db, userId) {
+  await db.prepare('DELETE FROM liked_songs WHERE user_id = ?').bind(userId).run();
+}
+
+export async function clearHistory(db, userId) {
+  await db.prepare('DELETE FROM history WHERE user_id = ?').bind(userId).run();
+}
+
+export async function deleteAccountData(db, userId) {
+  const playlists = await db.prepare('SELECT id FROM playlists WHERE user_id = ?').bind(userId).all();
+  const playlistIds = playlists.results.map((p) => p.id);
+  if (playlistIds.length) {
+    const trackDeletes = playlistIds.map((id) =>
+      db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').bind(id)
+    );
+    await db.batch(trackDeletes);
+  }
+  await db.prepare('DELETE FROM playlists WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM liked_songs WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM history WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
+}

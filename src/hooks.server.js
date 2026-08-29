@@ -2,21 +2,13 @@ import { SvelteKitAuth } from '@auth/sveltekit';
 import Google from '@auth/sveltekit/providers/google';
 import { sequence } from '@sveltejs/kit/hooks';
 import { ensureUser, linkGoogleAccount } from '$lib/server/db.js';
-
-const GUEST_COOKIE = 'ganify_uid';
-const GUEST_COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
+import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 
 const guestHandle = async ({ event, resolve }) => {
   let uid = event.cookies.get(GUEST_COOKIE);
   if (!uid) {
     uid = crypto.randomUUID();
-    event.cookies.set(GUEST_COOKIE, uid, {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: true,
-      maxAge: GUEST_COOKIE_MAX_AGE
-    });
+    event.cookies.set(GUEST_COOKIE, uid, guestCookieOptions());
   }
   event.locals.uid = uid;
   const db = event.platform?.env?.DB;
@@ -50,13 +42,7 @@ const { handle: authHandle } = SvelteKitAuth(async (event) => {
           const finalId = await linkGoogleAccount(db, event.locals.uid, account.providerAccountId, user);
           if (finalId !== event.locals.uid) {
             event.locals.uid = finalId;
-            event.cookies.set(GUEST_COOKIE, finalId, {
-              path: '/',
-              httpOnly: true,
-              sameSite: 'lax',
-              secure: true,
-              maxAge: GUEST_COOKIE_MAX_AGE
-            });
+            event.cookies.set(GUEST_COOKIE, finalId, guestCookieOptions());
           }
         } catch (err) {
           console.error('linkGoogleAccount failed', err);
