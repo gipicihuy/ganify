@@ -158,51 +158,27 @@
       <h1 style="font-size:1.35rem;font-weight:700;color:#FFFFFF;margin:0">Library</h1>
     </div>
 
-    <div style="display:flex;gap:8px">
-      <button on:click={() => _tab='recent'}
-        style="flex:1;padding:9px 0;border-radius:99px;border:1.5px solid {_tab==='recent' ? '#FFFFFF' : 'rgba(255,255,255,.15)'};
-          background:{_tab==='recent' ? 'rgba(255,255,255,.12)' : 'transparent'};
-          color:{_tab==='recent' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-          font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s">
+    <div class="lib-primary-nav">
+      <button class="lib-primary-tab" class:active={_tab === 'recent'} on:click={() => _tab='recent'}>
         Riwayat
       </button>
-      <button on:click={() => _tab='playlist'}
-        style="flex:1;padding:9px 0;border-radius:99px;border:1.5px solid {_tab==='playlist' ? '#FFFFFF' : 'rgba(255,255,255,.15)'};
-          background:{_tab==='playlist' ? 'rgba(255,255,255,.12)' : 'transparent'};
-          color:{_tab==='playlist' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-          font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s">
+      <button class="lib-primary-tab" class:active={_tab === 'playlist'} on:click={() => _tab='playlist'}>
         Playlist
       </button>
-      <button on:click={() => _tab='liked'}
-        style="flex:1;padding:9px 0;border-radius:99px;border:1.5px solid {_tab==='liked' ? '#FFFFFF' : 'rgba(255,255,255,.15)'};
-          background:{_tab==='liked' ? 'rgba(255,255,255,.12)' : 'transparent'};
-          color:{_tab==='liked' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-          font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .18s">
+      <button class="lib-primary-tab" class:active={_tab === 'liked'} on:click={() => _tab='liked'}>
         Disukai
       </button>
     </div>
 
     {#if _tab === 'recent'}
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button on:click={() => _subTab='semua'}
-          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='semua' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
-            background:{_subTab==='semua' ? 'rgba(255,255,255,.1)' : 'transparent'};
-            color:{_subTab==='semua' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+      <div class="lib-sub-nav">
+        <button class="lib-sub-tab" class:active={_subTab === 'semua'} on:click={() => _subTab='semua'}>
           Semua
         </button>
-        <button on:click={() => _subTab='recent'}
-          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='recent' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
-            background:{_subTab==='recent' ? 'rgba(255,255,255,.1)' : 'transparent'};
-            color:{_subTab==='recent' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+        <button class="lib-sub-tab" class:active={_subTab === 'recent'} on:click={() => _subTab='recent'}>
           Terakhir Diputar
         </button>
-        <button on:click={() => _subTab='liked'}
-          style="padding:5px 12px;border-radius:99px;border:1px solid {_subTab==='liked' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.12)'};
-            background:{_subTab==='liked' ? 'rgba(255,255,255,.1)' : 'transparent'};
-            color:{_subTab==='liked' ? '#FFFFFF' : 'rgba(245,245,245,.4)'};
-            font-family:'Quicksand',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap">
+        <button class="lib-sub-tab" class:active={_subTab === 'liked'} on:click={() => _subTab='liked'}>
           Baru Disukai
         </button>
       </div>
@@ -659,4 +635,69 @@
     animation: _ms .7s linear infinite;
   }
   @keyframes _ms { to { transform: rotate(360deg); } }
+
+  .lib-primary-nav {
+    display: flex;
+    gap: 22px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+
+  .lib-primary-tab {
+    position: relative;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 0 12px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .9rem;
+    font-weight: 600;
+    color: rgba(245,245,245,.42);
+    transition: color .18s ease;
+  }
+
+  .lib-primary-tab::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: #FFFFFF;
+    transform: scaleX(0);
+    transition: transform .18s ease;
+  }
+
+  .lib-primary-tab.active {
+    color: #FFFFFF;
+    font-weight: 700;
+  }
+
+  .lib-primary-tab.active::after {
+    transform: scaleX(1);
+  }
+
+  .lib-sub-nav {
+    display: flex;
+    gap: 18px;
+    margin-top: 16px;
+  }
+
+  .lib-sub-tab {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .72rem;
+    font-weight: 500;
+    color: rgba(245,245,245,.32);
+    white-space: nowrap;
+    transition: color .15s ease;
+  }
+
+  .lib-sub-tab.active {
+    color: rgba(245,245,245,.85);
+    font-weight: 700;
+  }
 </style>
