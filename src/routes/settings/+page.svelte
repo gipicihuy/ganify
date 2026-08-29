@@ -229,36 +229,38 @@
       </div>
     {/if}
 
-    <p class="settings-section-title">Data</p>
-    <div class="settings-group">
-      <button class="settings-item" on:click={() => goto('/library?tab=recent')}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">History</span>
-        </span>
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-      <button class="settings-item" on:click={() => goto('/library?tab=liked')}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">Liked Songs</span>
-        </span>
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-      <button class="settings-item" on:click={() => _sheet = 'clearData'}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">Clear Data</span>
-        </span>
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-    </div>
+    {#if _me && !_me.isGuest}
+      <p class="settings-section-title">Data</p>
+      <div class="settings-group">
+        <button class="settings-item" on:click={() => goto('/library?tab=recent')}>
+          <span class="settings-item-icon">
+            <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">History</span>
+          </span>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button class="settings-item" on:click={() => goto('/library?tab=liked')}>
+          <span class="settings-item-icon">
+            <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">Liked Songs</span>
+          </span>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button class="settings-item" on:click={() => _sheet = 'clearData'}>
+          <span class="settings-item-icon">
+            <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </span>
+          <span class="settings-item-text">
+            <span class="settings-item-title">Clear Data</span>
+          </span>
+          <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    {/if}
 
     <p class="settings-section-title">Appearance</p>
     <div class="settings-group">
