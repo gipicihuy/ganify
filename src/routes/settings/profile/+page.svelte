@@ -21,8 +21,10 @@
     _toastTimer = setTimeout(() => { _toast = ''; }, 2400);
   }
 
+  let _showPhotoSoon = false;
+
   function _handlePhotoTap() {
-    _showToast('Fitur ini akan segera hadir!');
+    _showPhotoSoon = true;
   }
 
   onMount(async () => {
@@ -141,6 +143,21 @@
   {/if}
 
 </div>
+
+{#if _showPhotoSoon}
+  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
+    on:click={() => _showPhotoSoon = false}>
+    <div style="width:100%;max-width:340px;max-height:85vh;overflow-y:auto;background:#1c1c1c;border-radius:18px;padding:22px 20px;border:1px solid rgba(255,255,255,.12)"
+      on:click|stopPropagation>
+      <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 10px">Ganti Foto Profil</p>
+      <p style="font-size:.78rem;color:rgba(245,245,245,.45);margin:0 0 18px;line-height:1.6">Fitur ini akan segera hadir!</p>
+      <button on:click={() => _showPhotoSoon = false}
+        style="width:100%;padding:11px;border-radius:10px;background:rgba(255,255,255,.12);
+          border:1px solid rgba(255,255,255,.25);cursor:pointer;font-family:'Quicksand',sans-serif;
+          font-size:.8rem;font-weight:700;color:#FFFFFF">Oke, Mengerti</button>
+    </div>
+  </div>
+{/if}
 
 {#if _toast}
   <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:200;
