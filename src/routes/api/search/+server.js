@@ -141,13 +141,20 @@ function extractRows(data) {
   return rows;
 }
 
+// `rows` di sini SELALU datang dari `artistsData`, yaitu response YT Music
+// yang sudah di-filter ke kategori "Artists" lewat parameter search sendiri
+// (lihat `fetchYoutube(query, 'artists')`) — jadi baris yang nyampe sini
+// memang sudah artis semua menurut YT Music sendiri. Dulu ada filter
+// tambahan yang cuma nerima row kalau subtitle-nya ngandung kata kunci
+// tertentu ('artist'/'pendengar'/'audiens'/'subscriber'), padahal subtitle
+// itu variasinya banyak & tergantung locale/status verifikasi artisnya
+// (mis. cuma nampilin genre, "Verified", follower count dengan istilah lain,
+// dll) — hasilnya row artis yang valid malah ke-drop dan array `artists`
+// jadi kosong sama sekali. Dedup by browseId (lewat `dedupeBy` di
+// performSearch) sudah cukup buat jaga integritas datanya, jadi filter
+// subtitle ini dibuang.
 function rowsToArtists(rows) {
-  return rows
-    .filter(({ subtitle }) => {
-      const s = subtitle.toLowerCase();
-      return s.includes('artist') || s.includes('pendengar') || s.includes('audiens') || s.includes('subscriber');
-    })
-    .map(({ browseId, title, subtitle, thumb }) => ({ id: browseId, title, artist: subtitle, cover: thumb }));
+  return rows.map(({ browseId, title, subtitle, thumb }) => ({ id: browseId, title, artist: subtitle, cover: thumb }));
 }
 
 function rowsToAlbumsAndPlaylists(rows) {
