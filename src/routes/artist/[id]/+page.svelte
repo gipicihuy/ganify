@@ -54,26 +54,27 @@
     }
   }
 
-  // Metadata artist yang ditampilkan di header profile. Cuma pakai angka
-  // yang beneran ada di response /api/artist (jumlah item tiap section
-  // yang memang sudah dirender di halaman ini) — bukan follower/subscriber
-  // count, karena /api/artist (browse) sama sekali gak pernah mengembalikan
-  // field itu (lihat src/routes/api/artist/+server.js: hasil cuma berisi
-  // artistId, name, description, cover, topSongs, topAlbums, topSingles,
-  // playlists, similarArtists). Dulu area info artist cuma nampilin
-  // `description` mentah dari YT Music, dan buat sebagian artist field itu
-  // isinya bukan bio beneran (kosong atau cuma teks pendek generik) —
-  // makanya kelihatan "kadang audience-like, kadang description, kadang
-  // gak ada apa-apa". Dengan chip metadata ini, header profile selalu
-  // konsisten menampilkan ringkasan katalog yang tersedia, terpisah total
-  // dari section bio di bawahnya.
-  $: _artistStats = _data ? [
-    _data.topSongs?.length ? `${_data.topSongs.length} Lagu` : null,
-    _data.topAlbums?.length ? `${_data.topAlbums.length} Album` : null,
-    _data.topSingles?.length ? `${_data.topSingles.length} Single & EP` : null,
-    _data.playlists?.length ? `${_data.playlists.length} Playlist` : null,
-    _data.similarArtists?.length ? `${_data.similarArtists.length} Artis Serupa` : null
-  ].filter(Boolean) : [];
+  // Angka audiens bulanan dikirim mentah (integer) dari /api/artist
+  // (hasil parse teks "X monthly listeners/audience" dari header YT Music —
+  // lihat extractMonthlyAudience di +server.js). Kalau null berarti source
+  // data memang gak nyediain metrik ini buat artist tsb — sengaja gak ada
+  // fallback ke subscriber count/apa pun, biar gak nampilin metrik yang
+  // bukan monthly audience.
+  function _formatAudience(n) {
+    if (n == null) return '';
+    const abs = Math.abs(n);
+    let value, suffix;
+    if (abs >= 1e9) { value = n / 1e9; suffix = 'M'; }
+    else if (abs >= 1e6) { value = n / 1e6; suffix = 'jt'; }
+    else if (abs >= 1e3) { value = n / 1e3; suffix = 'rb'; }
+    else return `${n}`;
+    let str = value.toFixed(1);
+    if (str.endsWith('.0')) str = str.slice(0, -2);
+    return `${str.replace('.', ',')} ${suffix}`;
+  }
+  $: _audienceText = _data && _data.monthlyAudience != null
+    ? `${_formatAudience(_data.monthlyAudience)} audiens bulanan`
+    : '';
 
   // Heuristik panjang teks buat nentuin apakah bio perlu tombol
   // expand/collapse. Sebelumnya dipaksa clamp 3 baris via CSS
@@ -81,7 +82,9 @@
   // teks kepotong "..." mati tanpa mekanisme buka/tutup. Threshold di sini
   // dicocokkan ke lebar container bio (max-width 440px, font .82rem,
   // line-clamp 4 baris di CSS) supaya tombol cuma muncul kalau teksnya
-  // memang bakal overflow.
+  // memang bakal overflow. `description` sekarang dari server sudah bersih
+  // dari attribution (dipisah di endpoint), jadi threshold ini gak lagi
+  // ke-distorsi oleh panjangnya teks attribution.
   $: _bioIsLong = !!_data?.description && (
     _data.description.length > 220 ||
     (_data.description.match(/\n/g) || []).length >= 3
@@ -139,13 +142,8 @@
       <img src={_data.cover} alt={_data.name} class="artist-photo" loading="lazy" />
       <h1 class="artist-name">{_data.name}</h1>
 
-      {#if _artistStats.length > 0}
-        <div class="artist-stats">
-          {#each _artistStats as stat, i}
-            {#if i > 0}<span class="artist-stats-dot" aria-hidden="true">•</span>{/if}
-            <span class="artist-stat">{stat}</span>
-          {/each}
-        </div>
+      {#if _audienceText}
+        <p class="artist-audience">{_audienceText}</p>
       {/if}
     </div>
 
@@ -157,6 +155,9 @@
           <button type="button" class="artist-bio-toggle" on:click={() => _bioExpanded = !_bioExpanded}>
             {_bioExpanded ? 'Lebih sedikit' : 'Selengkapnya'}
           </button>
+        {/if}
+        {#if _data.attribution?.length}
+          <p class="artist-bio-attribution">{#each _data.attribution as seg}{#if seg.url}<a href={seg.url} target="_blank" rel="noopener noreferrer">{seg.text}</a>{:else}{seg.text}{/if}{/each}</p>
         {/if}
       </div>
     {/if}
@@ -269,24 +270,20 @@
     line-height: 1.25;
     margin: 0;
   }
-  .artist-stats {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    column-gap: 8px;
-    row-gap: 4px;
-    max-width: 440px;
-  }
-  .artist-stat {
-    font-size: .78rem;
+  /* Monthly audience: satu-satunya metadata di bawah nama artist. Ganti
+     total dari chip statistik katalog (jumlah lagu/album/dst) sesuai
+     requirement — kalau _audienceText kosong (source emang gak nyediain
+     metrik ini buat artist tsb), area ini simply gak dirender, TANPA
+     digantikan elemen lain, biar layout tetap konsisten & jujur soal data
+     yang tersedia. */
+  .artist-audience {
+    font-size: .8rem;
     font-weight: 600;
     color: rgba(245,245,245,.72);
     letter-spacing: .01em;
-  }
-  .artist-stats-dot {
-    font-size: .65rem;
-    color: rgba(245,245,245,.28);
+    line-height: 1.4;
+    margin: 0;
+    max-width: 440px;
   }
 
   /* Bio/deskripsi artist: section terpisah di bawah metadata, bukan
@@ -340,4 +337,26 @@
     text-underline-offset: 2px;
   }
   .artist-bio-toggle:hover { color: rgba(255,255,255,.8); }
+
+  /* Attribution sumber (mis. Wikipedia + lisensi CC-BY-SA). SENGAJA tanpa
+     line-clamp/text-overflow/fixed height/overflow:hidden apa pun — teks
+     & link di sini harus selalu tampil utuh dan wrap natural ke baris
+     berikutnya, terutama di layar sempit/mobile. */
+  .artist-bio-attribution {
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: .68rem;
+    font-weight: 500;
+    line-height: 1.6;
+    color: rgba(245,245,245,.42);
+    overflow-wrap: break-word;
+  }
+  .artist-bio-attribution a {
+    color: rgba(245,245,245,.75);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .artist-bio-attribution a:hover { color: #FFFFFF; }
 </style>

@@ -3,6 +3,116 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/
 
 function getRunsText(r) { return Array.isArray(r) ? r.map(x => x.text || '').join('') : ''; }
 
+// YT Music/Innertube kadang bungkus link eksternal (mis. ke Wikipedia) lewat
+// endpoint redirect internal (`/redirect?q=<target>`), bukan URL final
+// langsung. Kalau ini gak di-unwrap, link "Wikipedia"/"Creative Commons" di
+// attribution bakal ngarah ke youtube.com, bukan ke sumber aslinya.
+function resolveExternalUrl(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl, 'https://music.youtube.com');
+    if (u.pathname === '/redirect' && u.searchParams.get('q')) return u.searchParams.get('q');
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+function hostnameOf(u) {
+  if (!u) return '';
+  try { return new URL(u).hostname.replace(/^www\./i, '').toLowerCase(); } catch { return ''; }
+}
+
+// Ubah runs jadi list segmen {text, url, start, end} dengan index karakter
+// di dalam full-text gabungannya, biar bisa dipotong per-rentang karakter
+// tanpa merusak/mengubah teks & link asli tiap run.
+function buildRunSegments(runs) {
+  let pos = 0;
+  return (Array.isArray(runs) ? runs : []).map(r => {
+    const text = r.text || '';
+    const seg = { text, url: resolveExternalUrl(r.navigationEndpoint?.urlEndpoint?.url || null), start: pos, end: pos + text.length };
+    pos += text.length;
+    return seg;
+  });
+}
+function sliceRunSegments(segments, from, to) {
+  const out = [];
+  for (const s of segments) {
+    const segFrom = Math.max(s.start, from);
+    const segTo = Math.min(s.end, to);
+    if (segFrom < segTo) out.push({ text: s.text.slice(segFrom - s.start, segTo - s.start), url: s.url });
+  }
+  return out;
+}
+
+// Bio dari header (h.description.runs) kadang diakhiri paragraf attribution
+// resmi dari Google Knowledge Graph ("From Wikipedia ... under Creative
+// Commons ..."), lengkap dengan link ke wikipedia.org & creativecommons.org
+// di dalam run-nya masing-masing. Sebelum ini, `getRunsText` cuma nge-join
+// semua run jadi satu string polos — link-nya ke-drop total, dan potongan
+// attribution ini nyampur jadi satu sama bio (ketimpa clamp bio juga).
+// Fungsi ini misahin bio vs attribution HANYA kalau link ke kedua domain itu
+// beneran ada di data (gak pernah bikin attribution kalau sumbernya gak
+// nyediain), dan gak mengubah teks asli tiap segmennya sama sekali.
+function splitBioAndAttribution(runs) {
+  const segments = buildRunSegments(runs);
+  const fullText = segments.map(s => s.text).join('');
+  let wikiStart = -1, hasCC = false;
+  for (const s of segments) {
+    const host = hostnameOf(s.url);
+    if (host.endsWith('wikipedia.org') && wikiStart === -1) wikiStart = s.start;
+    if (host.endsWith('creativecommons.org')) hasCC = true;
+  }
+  if (wikiStart === -1 || !hasCC) return { bio: fullText, attribution: null };
+
+  const boundary = fullText.lastIndexOf('\n\n', wikiStart);
+  if (boundary === -1) return { bio: fullText, attribution: null };
+
+  const bio = fullText.slice(0, boundary).trimEnd();
+  const attribution = sliceRunSegments(segments, boundary + 2, fullText.length).filter(s => s.text.length > 0);
+  return { bio, attribution: attribution.length ? attribution : null };
+}
+
+// Parser angka ringkas (mendukung notasi EN "10.8M"/"1.2K" maupun ID
+// "10,8 jt"/"1,2 rb") jadi integer mentah. Cuma dipakai buat teks yang udah
+// lolos pengecekan keyword monthly audience di extractMonthlyAudience —
+// gak pernah dipanggil buat nebak-nebak angka dari teks lain.
+function parseCompactNumber(text) {
+  if (!text) return null;
+  const m = String(text).match(/([\d]+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta|m|miliar|b)?/i);
+  if (!m) return null;
+  const num = parseFloat(m[1].replace(',', '.'));
+  if (isNaN(num)) return null;
+  const unit = (m[2] || '').toLowerCase();
+  if (unit === 'rb' || unit === 'ribu' || unit === 'k') return Math.round(num * 1e3);
+  if (unit === 'jt' || unit === 'juta' || unit === 'm') return Math.round(num * 1e6);
+  if (unit === 'miliar' || unit === 'b') return Math.round(num * 1e9);
+  return Math.round(num);
+}
+
+// "Monthly audience"/"monthly listeners" adalah metrik BEDA dari subscriber
+// count biasa (YT Music sedang rollout bertahap metrik ini menggantikan
+// subscriber count di sebagian artist — lihat 9to5google.com/2025/01/07/
+// youtube-music-monthly-audience-metric). Makanya di sini sengaja HANYA
+// nerima teks yang eksplisit nyebut "monthly listeners/audience" (atau
+// padanan ID-nya) sebagai sumber angka; subscriber count generik ("X
+// subscribers") sengaja gak dipakai sebagai pengganti, karena itu akan
+// nampilin metrik yang salah/bukan yang diminta.
+function extractMonthlyAudience(h) {
+  const candidates = [
+    getRunsText(h.secondSubtitle?.runs || []),
+    getRunsText(h.subscriptionButton?.subscribeButtonRenderer?.longSubscriberCountText?.runs || []),
+    getRunsText(h.subscriptionButton?.subscribeButtonRenderer?.subscriberCountText?.runs || []),
+    getRunsText(h.subtitle?.runs || [])
+  ];
+  for (const c of candidates) {
+    if (/monthly\s+(listeners?|audience)/i.test(c) || /(pendengar|audiens)\s+bulanan/i.test(c)) {
+      const n = parseCompactNumber(c);
+      if (n !== null) return n;
+    }
+  }
+  return null;
+}
+
 function toHDThumbnail(url, videoId) {
   if (!url && videoId) return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
   if (!url) return '';
@@ -60,13 +170,16 @@ export async function GET({ url }) {
     let headerThumbs = h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
       h.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails || [];
     thumbnails = transformThumbs(headerThumbs);
-    let description = getRunsText(h.description?.runs || []);
+    const { bio: bioFromRuns, attribution } = splitBioAndAttribution(h.description?.runs || []);
+    let description = bioFromRuns;
+    const monthlyAudience = extractMonthlyAudience(h);
 
     // Fallback terakhir kalau header di atas semua gak ke-match (mis. YT
     // Music ganti struktur lagi ke depannya): microformat SELALU ada di
     // response browse & isinya title/description/thumbnail dasar halaman,
     // jadi minimal nama & foto artis tetap ke-tampil walau section-section
-    // detailnya mungkin gagal parse.
+    // detailnya mungkin gagal parse. microformat gak punya runs/link, jadi
+    // gak ada attribution buat kasus fallback ini.
     if (!name) name = data?.microformat?.microformatDataRenderer?.title || '';
     if (!description) description = data?.microformat?.microformatDataRenderer?.description || '';
     if (thumbnails.length === 0) {
@@ -138,6 +251,8 @@ export async function GET({ url }) {
         artistId,
         name,
         description,
+        attribution,
+        monthlyAudience,
         cover: thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url || '',
         topSongs: topSongs.slice(0, 12),
         topAlbums: topAlbums.slice(0, 10),
