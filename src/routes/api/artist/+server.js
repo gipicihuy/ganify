@@ -99,6 +99,14 @@ function parseCompactNumber(text) {
 // nampilin metrik yang salah/bukan yang diminta.
 function extractMonthlyAudience(h) {
   const candidates = [
+    // Field asli dari Innertube buat metrik ini: `header.monthlyListenerCount.runs[0].text`
+    // (mis. "29.1M monthly audience") - dikonfirmasi dari source resmi ytmusicapi
+    // (ytmusicapi/mixins/browsing.py: `nav(header, ["monthlyListenerCount", "runs", 0, "text"])`).
+    // Field ini ROOT CAUSE-nya kenapa angka gak pernah muncul: sebelum ini candidate list
+    // cuma ngecek secondSubtitle/subscriptionButton/subtitle, yang semuanya BUKAN lokasi
+    // metrik ini - jadi extractMonthlyAudience selalu return null walau datanya beneran ada
+    // di response YT Music. Taruh paling pertama karena ini sumber paling akurat & langsung.
+    getRunsText(h.monthlyListenerCount?.runs || []),
     getRunsText(h.secondSubtitle?.runs || []),
     getRunsText(h.subscriptionButton?.subscribeButtonRenderer?.longSubscriberCountText?.runs || []),
     getRunsText(h.subscriptionButton?.subscribeButtonRenderer?.subscriberCountText?.runs || []),
