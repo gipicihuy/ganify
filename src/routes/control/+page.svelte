@@ -33,6 +33,11 @@
   let _flagsLoading = true;
   let _newFlagKey = '';
 
+  let _cleanupDays = 90;
+  let _cleanupPreview = null; // { count, days } | null
+  let _cleanupChecking = false;
+  let _cleanupBusy = false;
+
   let _auditEntries = [];
   let _auditTotal = 0;
   let _auditLoading = true;
@@ -150,6 +155,47 @@
       _showToast(enable ? 'Maintenance mode diaktifkan' : 'Maintenance mode dimatikan');
     } catch {
       _showToast('Gagal mengubah maintenance mode');
+    } finally {
+      _confirmBusy = false;
+      _confirm = null;
+    }
+  }
+
+  // ---------------- guest cleanup ----------------
+
+  async function _checkStaleGuests() {
+    _cleanupChecking = true;
+    _cleanupPreview = null;
+    try {
+      const res = await fetch(`/api/admin/cleanup-guests?days=${_cleanupDays}`);
+      if (!res.ok) throw new Error('bad response');
+      _cleanupPreview = await res.json();
+    } catch {
+      _showToast('Gagal mengecek jumlah guest');
+    } finally {
+      _cleanupChecking = false;
+    }
+  }
+
+  function _askCleanupGuests() {
+    if (!_cleanupPreview || _cleanupPreview.count === 0) return;
+    _confirm = { kind: 'cleanup_guests', days: _cleanupDays, count: _cleanupPreview.count };
+  }
+
+  async function _confirmCleanupGuests(days) {
+    _confirmBusy = true;
+    try {
+      const res = await fetch('/api/admin/cleanup-guests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days })
+      });
+      const data = await res.json();
+      _showToast(`${data.deleted} guest tidak aktif dihapus`);
+      _cleanupPreview = null;
+      _loadOverview();
+    } catch {
+      _showToast('Gagal membersihkan guest');
     } finally {
       _confirmBusy = false;
       _confirm = null;
@@ -364,6 +410,41 @@
           border:1px solid {_maintenance.enabled ? 'rgba(255,60,60,.3)' : 'transparent'}">
         {_maintenance.enabled ? 'Matikan Maintenance' : 'Aktifkan Maintenance'}
       </button>
+    </div>
+
+    <div class="control-panel-block" style="margin-top:12px">
+      <p class="control-block-title">Bersihkan Guest Tidak Aktif</p>
+      <p class="control-block-desc">
+        Setiap yang buka Ganify tanpa login otomatis dapet baris "guest" di database. Kalau orangnya gak pernah balik lagi, baris itu numpuk jadi storage yang kebuang percuma. Ini hapus guest yang udah gak aktif dalam sekian hari terakhir (data like/history/playlist milik mereka ikut kehapus).
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
+        <input type="number" min="7" bind:value={_cleanupDays}
+          on:input={() => _cleanupPreview = null}
+          style="width:80px;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.15);color:#F5F5F5;font-family:'Quicksand',sans-serif;font-size:.82rem" />
+        <span style="font-size:.78rem;color:rgba(245,245,245,.5);font-family:'Quicksand',sans-serif">hari tidak aktif</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button on:click={_checkStaleGuests} disabled={_cleanupChecking}
+          style="padding:10px 16px;border-radius:10px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;
+            background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:rgba(245,245,245,.8)">
+          {_cleanupChecking ? 'Mengecek...' : 'Cek Jumlah'}
+        </button>
+        {#if _cleanupPreview}
+          {#if _cleanupPreview.count > 0}
+            <span style="font-size:.8rem;color:#F5F5F5;font-family:'Quicksand',sans-serif">
+              Ketemu <strong>{_cleanupPreview.count}</strong> guest tidak aktif
+            </span>
+            <button on:click={_askCleanupGuests}
+              style="padding:10px 16px;border-radius:10px;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:.78rem;font-weight:700;
+                background:rgba(255,60,60,.15);border:1px solid rgba(255,60,60,.3);color:rgba(255,100,100,.9)">
+              Hapus Sekarang
+            </button>
+          {:else}
+            <span style="font-size:.8rem;color:rgba(245,245,245,.4);font-family:'Quicksand',sans-serif">Gak ada guest tidak aktif ditemukan</span>
+          {/if}
+        {/if}
+      </div>
     </div>
   {/if}
 
@@ -583,6 +664,15 @@
         <div style="display:flex;gap:10px">
           <button disabled={_confirmBusy} on:click={() => _confirm = null} class="control-modal-cancel">Batal</button>
           <button disabled={_confirmBusy} on:click={() => _confirmDeleteAnnouncement(_confirm.id)} class="control-modal-danger">{_confirmBusy ? '...' : 'Hapus'}</button>
+        </div>
+      {:else if _confirm.kind === 'cleanup_guests'}
+        <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 8px;font-family:'Quicksand',sans-serif">Hapus {_confirm.count} guest tidak aktif?</p>
+        <p style="font-size:.78rem;color:rgba(245,245,245,.45);margin:0 0 20px;line-height:1.5;font-family:'Quicksand',sans-serif">
+          Guest yang gak aktif lebih dari {_confirm.days} hari akan dihapus permanen, beserta liked songs, history, dan playlist yang nempel di akun mereka. Tindakan ini tidak bisa dibatalkan.
+        </p>
+        <div style="display:flex;gap:10px">
+          <button disabled={_confirmBusy} on:click={() => _confirm = null} class="control-modal-cancel">Batal</button>
+          <button disabled={_confirmBusy} on:click={() => _confirmCleanupGuests(_confirm.days)} class="control-modal-danger">{_confirmBusy ? '...' : 'Hapus'}</button>
         </div>
       {/if}
     </div>

@@ -107,6 +107,35 @@ export async function setUserBanned(db, userId, banned, reason, adminEmail) {
   await logAdminAction(db, adminEmail, banned ? 'ban_user' : 'unban_user', userId, reason || null);
 }
 
+// ---------------- guest cleanup ----------------
+// Setiap orang yang buka Ganify tanpa login otomatis dapet baris "guest" di
+// tabel users (lihat ensureUser di db.js) - kalau orangnya cuma numpang
+// lewat sekali dan gak pernah balik lagi, baris itu nyangkut selamanya dan
+// numpuk jadi storage yang kebuang percuma. Ini bersihin guest yang udah
+// gak aktif dalam N hari terakhir. Cascade FK di migrations/0001_init.sql
+// bikin liked_songs/history/playlists/playlist_tracks ikut kehapus otomatis
+// - itu wajar karena data itu emang cuma nempel ke guest id yang udah gak
+// bakal balik lagi.
+export async function countStaleGuests(db, olderThanMs) {
+  const cutoff = Date.now() - olderThanMs;
+  const row = await db
+    .prepare('SELECT COUNT(*) AS c FROM users WHERE is_guest = 1 AND last_seen_at < ?')
+    .bind(cutoff)
+    .first();
+  return row?.c || 0;
+}
+
+export async function deleteStaleGuests(db, olderThanMs, adminEmail) {
+  const cutoff = Date.now() - olderThanMs;
+  const result = await db
+    .prepare('DELETE FROM users WHERE is_guest = 1 AND last_seen_at < ?')
+    .bind(cutoff)
+    .run();
+  const deleted = result.meta?.changes || 0;
+  await logAdminAction(db, adminEmail, 'cleanup_guests', null, `${deleted} guest dihapus (>${Math.round(olderThanMs / 86_400_000)} hari tidak aktif)`);
+  return deleted;
+}
+
 // ---------------- announcements ----------------
 
 export async function listAnnouncementsAdmin(db) {
