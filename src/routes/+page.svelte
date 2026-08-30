@@ -824,10 +824,12 @@
             <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
               style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px;background:none;border:none;cursor:pointer;padding:0;animation-delay:{i*30}ms">
               <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
-              <span style="font-size:.72rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
-              {#if _circleAudienceText(a.monthlyAudience)}
-                <span style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{_circleAudienceText(a.monthlyAudience)}</span>
-              {/if}
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:100%">
+                <span style="font-size:.72rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
+                {#if _circleAudienceText(a.monthlyAudience)}
+                  <span style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{_circleAudienceText(a.monthlyAudience)}</span>
+                {/if}
+              </div>
             </button>
           {/each}
         </div>
