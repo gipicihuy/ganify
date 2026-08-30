@@ -62,85 +62,48 @@
 
   // "Artis Populer" dulu diambil dari artistId lagu yang lagi tampil di feed
   // (_ds), jadi isinya cuma sebanyak/seberagam artis yang kebetulan muncul di
-  // mood aktif. Sekarang ngirim request ke endpoint search buat nama-nama
-  // artis populer tertentu (mis. "Raim Laode", "Taylor Swift", "Justin
-  // Bieber"), sama seperti cara YT Music nampilin hasil pencarian artist -
-  // jadi section ini konsisten isinya, gak bergantung ke feed lagu.
-  // Sistemnya HYBRID: default-nya dynamic search + exact-match + pemilihan
-  // audiens terbanyak (buat hindarin clone/duplikat), TAPI kalau ada artis
-  // yang tetap ambigu walau sudah divalidasi begitu (mis. clone-nya justru
-  // punya audiens lebih banyak dari akun resmi), boleh di-override langsung
-  // ke artist/channel ID via _popularArtistOverrides di bawah.
-  const _popularArtistQueries = [
-    'Raim Laode', 'Taylor Swift', 'Justin Bieber', 'Tulus', 'Rich Brian',
-    'Bruno Mars', 'Dua Lipa', 'The Weeknd', 'Ariana Grande', 'Sheila On 7',
-    'Weird Genius', 'NIKI'
-  ];
+  // mood aktif. Lalu sempat diganti ke cara search per nama artis dari
+  // daftar tetap ("Raim Laode", "Taylor Swift", dst) — tapi itu bikin 2
+  // masalah: (1) daftarnya hardcoded/gak scalable, makin banyak artis makin
+  // ribet di-maintain, dan (2) search berdasarkan nama gampang ketuker sama
+  // channel clone/duplikat yang pakai nama sama persis.
+  //
+  // Sekarang: Artis Populer di-derive dari `_homeArtistPool` — pool lagu
+  // trending ASLI dari FEmusic_home (YT Music sendiri) yang SAMA dipakai
+  // buat "Lagi Rame Diputar"/"Campuran Untukmu" (lihat _loadTrending()).
+  // Tiap lagu di situ udah bawa artistId = link channel RESMI yang nempel
+  // langsung dari sumbernya (browseId diawali 'UC'), BUKAN hasil nyari
+  // berdasarkan nama — jadi channel clone/duplikat gak akan pernah kepilih
+  // sama sekali di jalur ini, karena clone gak mungkin jadi sumber resmi
+  // lagu trending YT Music. Ini juga otomatis bikin daftarnya gak
+  // hardcoded: siapa pun yang lagi beneran rame diputar bakal muncul,
+  // dari artis Indonesia sampai internasional, tanpa perlu di-daftar
+  // manual satu-satu.
+  let _homeArtistPool = [];
 
-  // Sebagian artis punya banyak channel/akun clone-duplikat yang pakai nama
-  // PERSIS sama dengan artisnya (kadang subscriber clone-nya malah lebih
-  // banyak dari akun resmi), jadi validasi exact-match + audiens terbanyak
-  // di bawah masih bisa salah pilih. Buat kasus begini, override langsung ke
-  // artist/channel ID yang sudah dipastikan benar (manual verified) - key-nya
-  // dinormalisasi (_normArtistName) biar cocok sama entri di
-  // _popularArtistQueries apa adanya. Detail (nama, thumbnail, dst) TETAP
-  // diambil LIVE dari endpoint /api/artist tiap kali dipakai, BUKAN
-  // di-hardcode - jadi kalau YT Music update nama/foto profil artisnya,
-  // section ini otomatis ikut ke-update juga.
-  const _popularArtistOverrides = {
-    'raim laode': 'UC6CRezCe1QhJfNpdTOXx5Sg'
-  };
-
-  // Parse angka audiens ("pendengar bulanan"/"subscriber"/dst) dari subtitle
-  // hasil search. Dipakai buat mutusin channel MANA yang beneran dimaksud
-  // kalau ada lebih dari satu channel dengan nama PERSIS sama — misal ada
-  // akun clone/duplikat yang pakai nama artis asli. Gak perlu presisi
-  // sempurna, cukup buat bandingin mana yang jauh lebih gede.
-  function _parseAudienceCount(subtitle) {
-    if (!subtitle) return 0;
-    const s = String(subtitle).toLowerCase();
-    // Format singkatan dgn desimal koma, mis. "1,2 jt pendengar bulanan"
-    // atau "500 rb subscriber".
-    let m = s.match(/(\d+(?:,\d+)?)\s*(rb|ribu|jt|juta|m|b|miliar)\b/);
-    if (m) {
-      const num = parseFloat(m[1].replace(',', '.'));
-      const unit = m[2];
-      if (unit === 'rb' || unit === 'ribu') return num * 1e3;
-      if (unit === 'jt' || unit === 'juta' || unit === 'm') return num * 1e6;
-      return num * 1e9; // b / miliar
-    }
-    // Format angka penuh pakai titik ribuan, mis. "823.145 pendengar bulanan".
-    m = s.match(/(\d{1,3}(?:\.\d{3})+|\d+)\s*(pendengar|subscriber|audiens)/);
-    if (m) return parseInt(m[1].replace(/\./g, ''), 10) || 0;
-    return 0;
-  }
-
-  // Normalisasi nama buat exact-match. Selain kapitalisasi/whitespace, hasil
-  // search YT Music kadang nempelin embel-embel yang bukan bagian nama asli
-  // artisnya — kanal auto-generated tanpa artist channel resmi suka disebut
-  // "<Nama> - Topic", ada juga yang kebawa "(Official)"/"VEVO"/diakritik
-  // beda unicode form. Dibersihin dulu sebelum dibandingin, TAPI tetap exact
-  // equality (bukan substring/fuzzy) — jadi masih aman dari collision nama
-  // mirip, cuma gak gagal cocok gara-gara noise kayak gitu.
-  function _normArtistName(s) {
-    return String(s || '')
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s*[-–]\s*topic\s*$/i, '')
-      .replace(/\s*[-–]\s*vevo\s*$/i, '')
-      .replace(/\((official|resmi)\)\s*$/i, '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ');
+  // Kasih skor tiap artistId dari pool: makin awal posisinya (makin
+  // "rame"/didorong YT Music sendiri di FEmusic_home, karena pool ini
+  // sudah diurutkan dedupeByFrequency di server) makin besar bobotnya,
+  // dan tiap lagu trending tambahan dari artis yang sama nambah skor lagi
+  // — artis dengan beberapa lagu ngetrend sekaligus makin unggul
+  // dibanding yang cuma nyumbang 1 lagu.
+  function _scoreArtistsFromPool(pool) {
+    const score = new Map();
+    const name = new Map();
+    pool.forEach((s, idx) => {
+      if (!s.artistId || !s.artistId.startsWith('UC')) return;
+      const weight = 1 / (1 + idx * 0.03);
+      score.set(s.artistId, (score.get(s.artistId) || 0) + weight);
+      if (!name.has(s.artistId)) name.set(s.artistId, s.artist);
+    });
+    return [...score.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => ({ id, name: name.get(id) }));
   }
 
   // Jalanin `fn` buat tiap `items` tapi dibatasi maksimal `limit` request
-  // bersamaan, bukan semuanya sekaligus. 12 nama artis x request search (yang
-  // masing-masing nembak 3 request ke YT Music di baliknya) kalau ditembak
-  // barengan itu ~36 request YT Music dalam sekali gebrak — gampang banget
-  // ke-throttle YT Music-nya sendiri, hasilnya beberapa/banyak query balik
-  // kosong/gagal dan "Artis Populer" jadi keliatan kosong padahal artisnya
-  // ada. Dibatasi biar lebih "sopan" ke YT Music dan hasilnya lebih stabil.
+  // bersamaan, bukan semuanya sekaligus — biar gak numpuk request ke
+  // endpoint /api/artist secara bersamaan.
   async function _mapLimited(items, limit, fn) {
     const results = new Array(items.length);
     let idx = 0;
@@ -154,58 +117,19 @@
     return results;
   }
 
-  // Cari 1 nama artis, dengan 1x retry (bypass cache) kalau percobaan
-  // pertama gagal total ATAU balik tanpa hasil artis sama sekali — biasanya
-  // gara-gara hiccup jaringan sesaat, bukan karena artisnya beneran gak ada.
-  // Tanpa bypassCache, retry percuma karena _g9 bakal balikin hasil "kosong"
-  // yang sama persis dari cache-nya sendiri.
-  // `force`: dipakai pas user eksplisit refresh Artis Populer — percobaan
-  // PERTAMA juga langsung bypass cache (bukan cuma retry-nya), soalnya
-  // _searchMem di api.js itu cache in-memory tanpa TTL (bertahan seumur
-  // sesi SPA), jadi tanpa ini refresh gak bakal pernah benar-benar nembak
-  // ulang ke YT Music buat artis yang search-nya udah pernah sukses.
-  async function _searchArtistWithRetry(name, i, force = false) {
-    const group = `_home_artist_${i}`;
-    let r = await _g9(name, group, { bypassCache: force }).catch(() => null);
-    if (r?.artists?.length) return r;
-    await new Promise(res => setTimeout(res, 350));
-    r = await _g9(name, group, { bypassCache: true }).catch(() => null);
-    return r;
-  }
+  const _ARTIST_TOP_TARGET = 12;
+  // Ambil kandidat sedikit lebih banyak dari target akhir (bukan jauh lebih
+  // banyak — tiap kandidat nembak 1 request ke /api/artist buat hydrate,
+  // jadi jangan kebanyakan) — beberapa artistId bisa gagal di-hydrate (mis.
+  // channel dihapus/dinonaktifkan), jadi ada cadangan buat gantiin tanpa
+  // perlu itung ulang skor dari awal.
+  const _ARTIST_CANDIDATE_POOL = 16;
 
-  // Ambil 1 entri "Artis Populer" berdasarkan hasil search dinamis (jalur
-  // default, dipakai kalau artisnya gak ada di _popularArtistOverrides).
-  async function _resolveArtistBySearch(name, i, force) {
-    const r = await _searchArtistWithRetry(name, i, force);
-    const wantedName = _normArtistName(name);
-    // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
-    // bisa collision sama artis lain yang namanya mirip/mengandung query.
-    // Kumpulin SEMUA hasil artist yang benar-benar exact match (case-
-    // insensitive, whitespace/embel-embel-normalized) dengan nama yang
-    // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
-    // daripada nampilin artis yang salah.
-    const matches = (r?.artists || []).filter(
-      a => a?.id && _normArtistName(a.title) === wantedName
-    );
-    if (!matches.length) return null;
-    // Bisa aja ada lebih dari satu channel dengan nama PERSIS sama (mis.
-    // akun clone/duplikat pakai nama artis asli). Dalam kasus gitu, pilih
-    // yang audiensnya (pendengar bulanan/subscriber) paling banyak — hampir
-    // selalu itu artisnya yang beneran, bukan clone-nya. Ini masih bisa
-    // salah kalau clone-nya justru punya audiens lebih gede (kasus kayak
-    // Raim Laode) — buat artis begini pakai override ID, bukan andalin
-    // heuristik audiens ini.
-    const best = matches.length === 1
-      ? matches[0]
-      : matches.reduce((a, b) => _parseAudienceCount(b.artist) > _parseAudienceCount(a.artist) ? b : a);
-    return { id: best.id, title: best.title, cover: best.cover };
-  }
-
-  // Ambil 1 entri "Artis Populer" dari artist/channel ID yang sudah
-  // di-override (dipastikan manual, bukan hasil search). Detailnya (nama,
-  // thumbnail) tetap live dari endpoint /api/artist yang sudah ada, jadi
-  // gak ada apa pun yang di-hardcode selain ID-nya sendiri.
-  async function _resolveArtistByOverride(id) {
+  // Ambil detail 1 artis (nama, thumbnail, dst) LIVE dari endpoint
+  // /api/artist yang sudah ada — gak ada satu pun bagian dari data
+  // tampilan (nama/foto) yang di-hardcode, cuma artistId-nya yang berasal
+  // dari _scoreArtistsFromPool di atas.
+  async function _hydrateArtist(id) {
     try {
       const data = await _getArtist(id);
       if (!data?.name) return null;
@@ -215,23 +139,19 @@
     }
   }
 
-  async function _resolveArtistEntry(name, i, force) {
-    const overrideId = _popularArtistOverrides[_normArtistName(name)];
-    if (overrideId) return _resolveArtistByOverride(overrideId);
-    return _resolveArtistBySearch(name, i, force);
-  }
-
-  async function _loadArtistsTop(force = false) {
+  async function _loadArtistsTop() {
     _artistsLoading = true;
     try {
-      const results = await _mapLimited(
-        _popularArtistQueries, 4,
-        (name, i) => _resolveArtistEntry(name, i, force)
-      );
+      // Biasanya _loadTrending() sudah lebih dulu ngisi _homeArtistPool
+      // (dipanggil sebelum _loadArtistsTop di onMount/_refresh/_pickMood),
+      // tapi jaga-jaga kalau dipanggil sebelum itu sempat jalan.
+      if (!_homeArtistPool.length) await _loadTrending();
+      const candidates = _scoreArtistsFromPool(_homeArtistPool).slice(0, _ARTIST_CANDIDATE_POOL);
+      const hydrated = await _mapLimited(candidates, 4, c => _hydrateArtist(c.id));
       const seen = new Set();
       const list = [];
-      results.forEach(entry => {
-        if (!entry?.id || seen.has(entry.id)) return;
+      hydrated.forEach(entry => {
+        if (!entry?.id || seen.has(entry.id) || list.length >= _ARTIST_TOP_TARGET) return;
         seen.add(entry.id);
         list.push(entry);
       });
@@ -361,14 +281,20 @@
         // dicampur/diacak lagi biar akurat.
         _trending = pool.slice(0, 12);
         _mix = _shuffle(pool.slice(12));
+        // Simpan urutan ASLI (belum di-shuffle) buat _scoreArtistsFromPool
+        // — Artis Populer butuh urutan "makin rame makin awal" ini apa
+        // adanya, bukan versi _mix yang udah diacak buat tampilan.
+        _homeArtistPool = pool;
       } else {
         _trending = [];
         _mix = [];
+        _homeArtistPool = [];
       }
     } catch {
       const shuffled = await _loadTrendingFallback();
       _trending = shuffled.slice(0, 12);
       _mix = shuffled.slice(12);
+      _homeArtistPool = shuffled;
     } finally {
       _trendingLoading = false;
     }
@@ -464,9 +390,12 @@
         _loadTrending()
       ]);
       _saveCache();
-      // force=true: ini refresh eksplisit dari user, jadi Artis Populer
-      // harus benar-benar nembak ulang, bukan kebaca dari _searchMem lama.
-      await _loadArtistsTop(true);
+      // Artis Populer sekarang selalu di-derive ulang dari _homeArtistPool
+      // yang baru saja di-refresh oleh _loadTrending() di atas, dan
+      // detailnya selalu live lewat _getArtist (gak ada cache client-side
+      // di jalur ini sama sekali) — jadi refresh manual otomatis dapat
+      // data terbaru tanpa perlu flag/force khusus lagi.
+      await _loadArtistsTop();
       _saveCache();
     } finally {
       _refreshing = false;
@@ -497,13 +426,11 @@
     }
 
     // Konten utama (feed + trending/mix) dulu — itu yang paling kelihatan &
-    // paling ditunggu user pas pertama buka. "Artis Populer" nembak 4-12
-    // request search tambahan ke YT Music di belakangnya; kalau ditembak
-    // bareng sama feed+trending pas mount, semuanya rebutan bandwidth/rate
-    // limit YT Music dan hasilnya section-section ini suka telat muncul
-    // atau (khusus Artis Populer) balik kosong gara-gara request-nya
-    // ke-throttle. Jadi Artis Populer dimuat belakangan, gak diblokir ke
-    // scroll-restore di bawah.
+    // paling ditunggu user pas pertama buka. "Artis Populer" di-derive dari
+    // _homeArtistPool yang baru keisi setelah _loadTrending() selesai,
+    // terus di-hydrate live lewat beberapa request /api/artist — dimuat
+    // belakangan biar gak nge-block scroll-restore di bawah & gak numpuk
+    // bareng request feed+trending.
     await Promise.all([
       _loadFeed(_activeMood),
       _loadTrending()

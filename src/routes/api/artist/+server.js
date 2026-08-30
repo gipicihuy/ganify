@@ -44,10 +44,35 @@ export async function GET({ url }) {
     let name = '', thumbnails = [];
     const topSongs = [], topAlbums = [], topSingles = [], playlists = [], similarArtists = [];
 
-    const h = data?.header?.musicImmersiveHeaderRenderer || data?.header?.musicVisualHeaderRenderer || {};
+    // YT Music GAK selalu pakai musicImmersiveHeaderRenderer buat header
+    // artist page — itu cuma dipakai buat artis yang dapat treatment
+    // "immersive" (banner promo besar). Kebanyakan artist page lain (mis.
+    // Taylor Swift, Justin Bieber, dst di layout terbaru) headernya
+    // musicResponsiveHeaderRenderer, dan sebagian pakai musicVisualHeaderRenderer
+    // atau bahkan musicDetailHeaderRenderer. Sebelum ini cuma 2 dari 4 varian
+    // yang dicek, jadi utk artis yang headernya bukan salah satu dari itu,
+    // `h` jatuh ke {} dan name/thumbnail-nya kosong total — artist page
+    // ke-render tapi blank/gak lengkap. (Endpoint /api/album udah lebih dulu
+    // nemuin & fix masalah yang sama persis buat halaman album.)
+    const h = data?.header?.musicImmersiveHeaderRenderer || data?.header?.musicDetailHeaderRenderer ||
+      data?.header?.musicResponsiveHeaderRenderer || data?.header?.musicVisualHeaderRenderer || {};
     name = getRunsText(h.title?.runs || []);
-    thumbnails = transformThumbs(h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || []);
-    const description = getRunsText(h.description?.runs || []);
+    let headerThumbs = h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+      h.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails || [];
+    thumbnails = transformThumbs(headerThumbs);
+    let description = getRunsText(h.description?.runs || []);
+
+    // Fallback terakhir kalau header di atas semua gak ke-match (mis. YT
+    // Music ganti struktur lagi ke depannya): microformat SELALU ada di
+    // response browse & isinya title/description/thumbnail dasar halaman,
+    // jadi minimal nama & foto artis tetap ke-tampil walau section-section
+    // detailnya mungkin gagal parse.
+    if (!name) name = data?.microformat?.microformatDataRenderer?.title || '';
+    if (!description) description = data?.microformat?.microformatDataRenderer?.description || '';
+    if (thumbnails.length === 0) {
+      const mfThumbs = data?.microformat?.microformatDataRenderer?.thumbnail?.thumbnails || [];
+      if (mfThumbs.length) thumbnails = transformThumbs(mfThumbs);
+    }
 
     const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs || [];
     for (const tab of tabs) {
