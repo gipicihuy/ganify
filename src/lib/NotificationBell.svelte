@@ -17,13 +17,40 @@
   let _left = 0;
   let _right = null;
 
+  // Id-id notif yang udah "kelihatan" user di sesi buka-panel terakhir.
+  // Dipakai buat bedain notif lama (auto jadi read pas panel dibuka) sama
+  // notif baru yang nongol lewat polling selagi panel masih kebuka - yang
+  // baru itu harus tetap unread sampai panel ditutup terus dibuka lagi.
+  let _seenIds = new Set();
+  let _pollTimer = null;
+
   $: _unread = _items.filter((i) => !i.isRead).length;
+  $: _showGroups = _items.length > 6;
+  $: _groups = _showGroups ? _groupByRecency(_items) : null;
+
+  function _groupByRecency(items) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const today = [];
+    const earlier = [];
+    for (const it of items) {
+      (it.created_at >= todayStart ? today : earlier).push(it);
+    }
+    const groups = [];
+    if (today.length) groups.push({ label: 'Hari ini', items: today });
+    if (earlier.length) groups.push({ label: 'Sebelumnya', items: earlier });
+    return groups;
+  }
 
   async function _load() {
     try {
       const res = await fetch('/api/announcements');
       const data = await res.json();
-      _items = data.announcements || [];
+      const fresh = data.announcements || [];
+      // Item yang udah pernah "dilihat" (dari sesi buka panel sebelumnya)
+      // selalu dianggap read. Item baru yang belum pernah dilihat ngikut
+      // status read dari server (biasanya unread, kecuali dibuka dari tab lain).
+      _items = fresh.map((a) => (_seenIds.has(a.id) ? { ...a, isRead: true } : a));
     } catch {
       _items = [];
     } finally {
@@ -32,6 +59,36 @@
   }
 
   onMount(_load);
+
+  function _startPolling() {
+    _stopPolling();
+    _pollTimer = setInterval(_load, 20000);
+  }
+
+  function _stopPolling() {
+    if (_pollTimer) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+    }
+  }
+
+  async function _markExistingAsRead() {
+    const unreadIds = _items.filter((i) => !i.isRead).map((i) => i.id);
+    _seenIds = new Set([..._seenIds, ..._items.map((i) => i.id)]);
+    if (!unreadIds.length) return;
+    // Optimistic: langsung ilangin semua indicator unread yang lagi
+    // kelihatan di panel, gak perlu diklik satu-satu.
+    _items = _items.map((i) => (unreadIds.includes(i.id) ? { ...i, isRead: true } : i));
+    try {
+      await fetch('/api/announcements/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: unreadIds })
+      });
+    } catch {
+      console.error('Gagal menandai notifikasi sebagai dibaca');
+    }
+  }
 
   function _computePosition() {
     if (!_wrapEl) return;
@@ -58,11 +115,16 @@
     if (_open) {
       await tick();
       _computePosition();
+      await _markExistingAsRead();
+      _startPolling();
+    } else {
+      _stopPolling();
     }
   }
 
   function _close() {
     _open = false;
+    _stopPolling();
   }
 
   async function _openItem(item) {
@@ -70,6 +132,7 @@
     // Optimistic: state lokal langsung update biar dot unread-nya hilang
     // seketika saat diklik, gak nunggu round-trip network.
     _items = _items.map((i) => (i.id === item.id ? { ...i, isRead: true } : i));
+    _seenIds.add(item.id);
     try {
       await fetch('/api/announcements/read', {
         method: 'POST',
@@ -129,6 +192,7 @@
     window.addEventListener('scroll', _onWindowChange, true);
   });
   onDestroy(() => {
+    _stopPolling();
     if (typeof window === 'undefined') return;
     window.removeEventListener('resize', _onWindowChange);
     window.removeEventListener('scroll', _onWindowChange, true);
@@ -186,6 +250,20 @@
           <p>Belum ada notifikasi</p>
           <span>Pengumuman dan info terbaru bakal muncul di sini.</span>
         </div>
+      {:else if _showGroups}
+        {#each _groups as group (group.label)}
+          <div class="notif-group-label">{group.label}</div>
+          {#each group.items as item (item.id)}
+            <button type="button" class="notif-item" class:is-unread={!item.isRead} on:click={() => _openItem(item)}>
+              <span class="notif-dot" aria-hidden={item.isRead}></span>
+              <span class="notif-body">
+                <span class="notif-title">{item.title}</span>
+                <span class="notif-text">{item.body}</span>
+                <span class="notif-time">{_timeAgo(item.created_at)}</span>
+              </span>
+            </button>
+          {/each}
+        {/each}
       {:else}
         {#each _items as item (item.id)}
           <button type="button" class="notif-item" class:is-unread={!item.isRead} on:click={() => _openItem(item)}>
@@ -252,6 +330,16 @@
     overflow-y: auto;
     padding: 6px;
   }
+
+  .notif-group-label {
+    padding: 10px 10px 4px;
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.32);
+  }
+  .notif-group-label:first-child { padding-top: 6px; }
 
   .notif-item {
     display: flex;

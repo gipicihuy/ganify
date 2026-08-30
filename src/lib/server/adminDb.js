@@ -185,6 +185,16 @@ export async function markAnnouncementRead(db, userId, announcementId) {
     .run();
 }
 
+export async function markAnnouncementsReadBatch(db, userId, announcementIds) {
+  if (!announcementIds.length) return;
+  const now = Date.now();
+  const stmt = db.prepare(
+    `INSERT INTO announcement_reads (user_id, announcement_id, read_at) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, announcement_id) DO UPDATE SET read_at = excluded.read_at`
+  );
+  await db.batch(announcementIds.map((id) => stmt.bind(userId, id, now)));
+}
+
 // ---------------- audit log ----------------
 
 export async function logAdminAction(db, actorEmail, action, target, detail) {
