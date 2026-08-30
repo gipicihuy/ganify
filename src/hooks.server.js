@@ -17,6 +17,34 @@ function isAlwaysAllowed(pathname) {
   return ALWAYS_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+// Web Crypto's `crypto.subtle` only exists in a secure context (HTTPS, or
+// exactly localhost/127.0.0.1) - see the long comment in `$lib/api.js` for
+// why that alone can make the client-side decrypt/HMAC calls in api.js
+// throw "crypto.subtle is undefined" in Firefox while Chrome tolerates the
+// same insecure URL. Cloudflare's dashboard "Always Use HTTPS" setting
+// normally redirects this at the edge before it ever reaches the app, but
+// that's an operator-controlled toggle outside this codebase - if it's ever
+// off (or a custom domain is added without it), plain-HTTP requests would
+// reach here directly. Redirecting to HTTPS at the app layer too closes
+// that gap regardless of the dashboard setting, without weakening anything
+// client-side. Skipped for localhost/127.0.0.1 so local dev (`wrangler
+// pages dev`, which serves plain HTTP) keeps working.
+const httpsRedirectHandle = async ({ event, resolve }) => {
+  const { protocol, hostname } = event.url;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  if (protocol === 'http:' && !isLocal) {
+    const httpsUrl = new URL(event.request.url);
+    httpsUrl.protocol = 'https:';
+    return new Response(null, { status: 308, headers: { location: httpsUrl.toString() } });
+  }
+  const response = await resolve(event);
+  // HSTS: once a browser has seen this once over HTTPS, it refuses to even
+  // attempt plain HTTP for this host again for the given max-age - removes
+  // the insecure-context window entirely for repeat visits, on every browser.
+  if (!isLocal) response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  return response;
+};
+
 const apiGuardHandle = async ({ event, resolve }) => {
   const blocked = await guardApiRequest(event);
   if (blocked) return blocked;
@@ -145,6 +173,7 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
 };
 
 export const handle = sequence(
+  httpsRedirectHandle,
   apiGuardHandle,
   initGuestHandle,
   authHandle,

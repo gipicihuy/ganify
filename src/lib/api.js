@@ -1,5 +1,39 @@
 const _SECRET = 'msc_s3cr3t_g1vy_2026';
+
+// Web Crypto's `subtle` interface is spec'd to only exist in a "secure
+// context" (HTTPS, or exactly `localhost`/`127.0.0.1`) - per the Secure
+// Contexts spec, `crypto.subtle` isn't just refused/throwing when insecure,
+// it's straight up `undefined`, in every standards-compliant browser. Which
+// browser "enforces" this correctly for a given URL can still differ though:
+// Chrome (and Chromium engines) have historically been more lenient about
+// which loopback/local hostnames count as secure (e.g. any `*.localhost`
+// subdomain, the whole `127.0.0.0/8` range, or a manually-flagged
+// "unsafely-treat-insecure-origin-as-secure" override some devs set for LAN
+// testing), while Firefox sticks to the strict spec definition (exactly
+// `localhost` / `127.0.0.1` / `https:`). That mismatch is exactly the
+// "works in Chrome, breaks in Firefox" pattern here - it's not a Firefox
+// bug or a missing polyfill, `crypto.subtle` is correctly absent because the
+// page isn't actually loaded from a secure-context origin for that browser.
+//
+// The fix is NOT to fall back to a weaker/non-crypto path (that would mean
+// shipping the HMAC secret or AES key in a way that skips real signing, or
+// worse, moving verification logic client-side) - the signing key and the
+// server-side decrypt keys must stay proven by actual WebCrypto. Instead we
+// fail loud and specific: detect the missing secure context up front and
+// throw a clear, actionable message, instead of letting a raw
+// "crypto.subtle is undefined" TypeError bubble up to the UI.
+function _assertSecureCrypto() {
+  if (typeof crypto !== 'undefined' && crypto.subtle) return;
+  const insecure = typeof window !== 'undefined' && window.isSecureContext === false;
+  throw new Error(
+    insecure
+      ? 'Ganify butuh koneksi aman (HTTPS) untuk memuat data. Coba buka lewat https:// atau perbarui ke versi browser terbaru.'
+      : 'Browser ini tidak mendukung Web Crypto API yang dibutuhkan Ganify. Coba pakai browser modern (Chrome, Firefox, Edge, Safari terbaru).'
+  );
+}
+
 const _ENC_KEY = async () => {
+  _assertSecureCrypto();
   const raw = new Uint8Array([0x4d,0x7a,0x9c,0x2e,0x1f,0x8b,0x3a,0x6d,0x0e,0x5c,0x9f,0x2b,0x7a,0x4e,0x1d,0x8c]);
   return crypto.subtle.importKey('raw', raw, { name: 'AES-CBC' }, false, ['decrypt']);
 };
@@ -15,6 +49,7 @@ async function _decrypt(d, ivB64) {
 }
 
 async function _sign(ts, q) {
+  _assertSecureCrypto();
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', enc.encode(_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`${ts}:${q}`));

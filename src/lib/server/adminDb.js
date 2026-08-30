@@ -155,16 +155,23 @@ export async function deleteAnnouncement(db, id, adminEmail) {
   await logAdminAction(db, adminEmail, 'delete_announcement', id, null);
 }
 
-export async function getUnreadAnnouncementCount(db, userId) {
-  const active = await listActiveAnnouncements(db);
-  if (!active.length) return 0;
-  const ids = active.map((a) => a.id);
+// Dipakai bareng oleh GET /api/announcements (buat nandain tiap notif
+// individual sudah dibaca/belum) dan getUnreadAnnouncementCount di bawah -
+// satu query read-state ini dishare, bukan di-duplikasi.
+export async function getAnnouncementReadIds(db, userId, ids) {
+  if (!ids.length) return new Set();
   const placeholders = ids.map(() => '?').join(',');
   const readRows = await db
     .prepare(`SELECT announcement_id FROM announcement_reads WHERE user_id = ? AND announcement_id IN (${placeholders})`)
     .bind(userId, ...ids)
     .all();
-  const readSet = new Set(readRows.results.map((r) => r.announcement_id));
+  return new Set(readRows.results.map((r) => r.announcement_id));
+}
+
+export async function getUnreadAnnouncementCount(db, userId) {
+  const active = await listActiveAnnouncements(db);
+  if (!active.length) return 0;
+  const readSet = await getAnnouncementReadIds(db, userId, active.map((a) => a.id));
   return active.filter((a) => !readSet.has(a.id)).length;
 }
 
