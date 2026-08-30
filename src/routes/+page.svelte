@@ -72,18 +72,51 @@
     'Weird Genius', 'NIKI'
   ];
 
-  // Normalisasi nama buat exact-match: lowercase + kompres whitespace, biar
-  // beda kapitalisasi ("Tulus" vs "tulus") atau spasi ganda/leading/trailing
-  // tetap dianggap sama tanpa jadi longgar ke arah partial/fuzzy match.
+  // Normalisasi nama buat exact-match. Selain kapitalisasi/whitespace, hasil
+  // search YT Music kadang nempelin embel-embel yang bukan bagian nama asli
+  // artisnya — kanal auto-generated tanpa artist channel resmi suka disebut
+  // "<Nama> - Topic", ada juga yang kebawa "(Official)"/"VEVO"/diakritik
+  // beda unicode form. Dibersihin dulu sebelum dibandingin, TAPI tetap exact
+  // equality (bukan substring/fuzzy) — jadi masih aman dari collision nama
+  // mirip, cuma gak gagal cocok gara-gara noise kayak gitu.
   function _normArtistName(s) {
-    return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return String(s || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s*[-–]\s*topic\s*$/i, '')
+      .replace(/\s*[-–]\s*vevo\s*$/i, '')
+      .replace(/\((official|resmi)\)\s*$/i, '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  // Jalanin `fn` buat tiap `items` tapi dibatasi maksimal `limit` request
+  // bersamaan, bukan semuanya sekaligus. 12 nama artis x request search (yang
+  // masing-masing nembak 3 request ke YT Music di baliknya) kalau ditembak
+  // barengan itu ~36 request YT Music dalam sekali gebrak — gampang banget
+  // ke-throttle YT Music-nya sendiri, hasilnya beberapa/banyak query balik
+  // kosong/gagal dan "Artis Populer" jadi keliatan kosong padahal artisnya
+  // ada. Dibatasi biar lebih "sopan" ke YT Music dan hasilnya lebih stabil.
+  async function _mapLimited(items, limit, fn) {
+    const results = new Array(items.length);
+    let idx = 0;
+    async function worker() {
+      while (idx < items.length) {
+        const cur = idx++;
+        results[cur] = await fn(items[cur], cur);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
   }
 
   async function _loadArtistsTop() {
     _artistsLoading = true;
     try {
-      const results = await Promise.all(
-        _popularArtistQueries.map((name, i) => _g9(name, `_home_artist_${i}`).catch(() => null))
+      const results = await _mapLimited(
+        _popularArtistQueries, 4,
+        (name, i) => _g9(name, `_home_artist_${i}`).catch(() => null)
       );
       const seen = new Set();
       const list = [];
@@ -92,9 +125,9 @@
         // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
         // bisa collision sama artis lain yang namanya mirip/mengandung query.
         // Cari kandidat di antara SEMUA hasil artist yang benar-benar exact
-        // match (case-insensitive, whitespace-normalized) dengan nama yang
-        // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
-        // daripada nampilin artis yang salah.
+        // match (case-insensitive, whitespace/embel-embel-normalized) dengan
+        // nama yang kita cari. Kalau gak ada satupun yang cocok persis, skip
+        // artis ini daripada nampilin artis yang salah.
         const match = (r?.artists || []).find(
           a => a?.id && _normArtistName(a.title) === wantedName
         );
@@ -138,21 +171,22 @@
     }
   }
 
-  // Query terpisah buat nyari lagu Indonesia yang lagi viral/rame saat ini,
-  // dipakai sebagai sumber PRIORITAS tambahan (bukan gantiin) buat "Lagi
-  // Rame Diputar" & "Campuran Untukmu" — tujuannya biar dua section itu
-  // lebih condong ke lagu Indonesia yang lagi viral, tanpa bikin homepage
-  // isinya lagu Indonesia doang (lihat _interleavePriority di bawah).
+  // Query terpisah buat nyari lagu Indonesia yang lagi viral/rame saat ini.
+  // Dipakai buat nambahin "Campuran Untukmu" doang (BUKAN "Lagi Rame
+  // Diputar" — itu harus murni ngikutin urutan asli dari FEmusic_home biar
+  // akurat sama beranda YT Music beneran, gak dicampur/diacak lagi), dan
+  // dijalanin belakangan/background biar gak nunda kemunculan pertama kedua
+  // section (lihat _augmentMixWithViral).
   const _viralIndoQueries = [
     'Lagu Indonesia Viral',
-    'Lagu Indonesia Viral Tiktok',
     'Lagu Indonesia Trending'
   ];
 
   async function _loadViralIndo() {
     try {
-      const results = await Promise.all(
-        _viralIndoQueries.map((q, i) => _g9(q, `_home_viral_indo_${i}`).catch(() => null))
+      const results = await _mapLimited(
+        _viralIndoQueries, 2,
+        (q, i) => _g9(q, `_home_viral_indo_${i}`).catch(() => null)
       );
       const seen = new Set();
       const pool = [];
@@ -171,9 +205,8 @@
 
   // Sisipin `priority` ke dalam `pool` secara berkala (1 item priority tiap
   // `everyN` item pool) alih-alih ditumpuk semua di depan — biar lagu viral
-  // Indonesia kebagian porsi lebih besar di "Lagi Rame Diputar" (12 item
-  // pertama) DAN "Campuran Untukmu" (sisanya), tapi urutan/variasi asli dari
-  // feed YT Music (`pool`) tetap kepegang, gak ketiban semua di satu tempat.
+  // Indonesia kebagian porsi lebih besar di "Campuran Untukmu" tapi urutan/
+  // variasi aslinya tetap kepegang, gak ketiban semua di satu tempat.
   function _interleavePriority(pool, priority, everyN = 2) {
     if (!priority.length) return pool;
     const result = [];
@@ -188,10 +221,25 @@
     return result;
   }
 
+  // Nambahin lagu Indonesia viral ke "Campuran Untukmu" SETELAH trending/mix
+  // awal udah tampil & retry-nya kelar. Dijalanin belakangan (gak diawait di
+  // jalur render pertama) biar section ini gak ikut nunggu 2 request search
+  // tambahan ini buat bisa muncul — itu salah satu sumber kenapa section
+  // suka "telat ngeload".
+  async function _augmentMixWithViral() {
+    if (!_mix.length) return;
+    const viralIndo = await _loadViralIndo();
+    if (!viralIndo.length) return;
+    const existingIds = new Set([..._trending, ..._mix].map(s => s.videoId));
+    const viralPicks = viralIndo.filter(s => !existingIds.has(s.videoId));
+    if (!viralPicks.length) return;
+    _mix = _interleavePriority(_mix, viralPicks, 2);
+  }
+
   async function _loadTrending(attempt = 0) {
     _trendingLoading = true;
     try {
-      const [home, viralIndo] = await Promise.all([_getHome(), _loadViralIndo()]);
+      const home = await _getHome();
       let pool = (home?.songs || []).filter(s => s.videoId);
 
       // FEmusic_home kadang balik pool yang tipis (mis. continuation gagal
@@ -207,14 +255,10 @@
 
       if (pool.length) {
         // `pool` sudah terurut dari yang paling sering muncul di berbagai
-        // shelf FEmusic_home (paling "rame"/didorong) ke yang paling jarang.
-        // Sisipin lagu Indonesia viral (dedup terhadap pool) supaya lebih
-        // banyak muncul di beranda, dibatasi porsinya (interleave 1:2) biar
-        // tetap ada variasi internasional & dari feed YT Music yang asli.
-        const poolIds = new Set(pool.map(s => s.videoId));
-        const viralPicks = viralIndo.filter(s => !poolIds.has(s.videoId));
-        pool = _interleavePriority(pool, viralPicks, 2);
-
+        // shelf FEmusic_home (paling "rame"/didorong) ke yang paling jarang
+        // — INI urutan asli algoritma beranda YT Music, jadi "Lagi Rame
+        // Diputar" (12 item pertama) dibiarkan apa adanya, gak
+        // dicampur/diacak lagi biar akurat.
         _trending = pool.slice(0, 12);
         _mix = _shuffle(pool.slice(12));
       } else {
@@ -238,7 +282,10 @@
     if ((!_trending.length || !_mix.length) && attempt < 2) {
       await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
       await _loadTrending(attempt + 1);
+      return;
     }
+
+    await _augmentMixWithViral();
   }
 
   async function _loadFeed(moodIdx) {
@@ -299,7 +346,12 @@
   async function _pickMood(i) {
     if (_activeMood === i) return;
     _activeMood = i;
-    await Promise.all([_loadFeed(i), _loadArtistsTop()]);
+    // Feed dulu (yang langsung keliatan pas ganti mood), Artis Populer
+    // nyusul belakangan — bukan bareng — biar gak numpuk request ke YT
+    // Music bareng-bareng (lihat catatan di _mapLimited).
+    await _loadFeed(i);
+    _saveCache();
+    await _loadArtistsTop();
     _saveCache();
   }
 
@@ -309,9 +361,10 @@
     try {
       await Promise.all([
         _loadFeed(_activeMood),
-        _loadArtistsTop(),
         _loadTrending()
       ]);
+      _saveCache();
+      await _loadArtistsTop();
       _saveCache();
     } finally {
       _refreshing = false;
@@ -341,14 +394,24 @@
       return;
     }
 
+    // Konten utama (feed + trending/mix) dulu — itu yang paling kelihatan &
+    // paling ditunggu user pas pertama buka. "Artis Populer" nembak 4-12
+    // request search tambahan ke YT Music di belakangnya; kalau ditembak
+    // bareng sama feed+trending pas mount, semuanya rebutan bandwidth/rate
+    // limit YT Music dan hasilnya section-section ini suka telat muncul
+    // atau (khusus Artis Populer) balik kosong gara-gara request-nya
+    // ke-throttle. Jadi Artis Populer dimuat belakangan, gak diblokir ke
+    // scroll-restore di bawah.
     await Promise.all([
       _loadFeed(_activeMood),
-      _loadArtistsTop(),
       _loadTrending()
     ]);
     _saveCache();
     await tick();
     window.scrollTo(0, _homeScrollY);
+
+    await _loadArtistsTop();
+    _saveCache();
   });
 
   onDestroy(() => {
