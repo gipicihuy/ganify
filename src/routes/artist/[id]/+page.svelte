@@ -7,23 +7,44 @@
 
   let _data = null, _ld = true, _er = null;
   let _loadingId = null;
+  // ID yang datanya lagi ditampilkan/lagi diproses oleh load() saat ini.
+  // Root cause loading yang gak pernah selesai: `$: if (_id) load();`
+  // dulunya nembak load() lagi tiap kali blok reaktif ini ke-invalidate,
+  // BUKAN cuma pas `_id` beneran ganti nilai — Svelte re-run reactive
+  // statement berdasarkan "variabelnya baru di-assign", bukan "nilainya
+  // beda dari sebelumnya". Jadi navigasi/update store apa pun yang bikin
+  // `_id` di-assign ulang ke nilai yang SAMA tetap men-trigger load() lagi,
+  // dan beberapa call `load()` yang overlap saling rebutan _ld/_data/_er
+  // tanpa urutan yang jelas — salah satu request yang telat balik bisa
+  // nimpa state dari request yang lebih baru, termasuk numpuk balik jadi
+  // "loading" padahal ada request lain yang sudah selesai duluan.
+  let _loadedFor = null;
+  let _loadToken = 0;
 
   $: _id = $page.params.id;
 
   // reactive, bukan onMount: karena SvelteKit reuse komponen yang sama saat
   // pindah dari /artist/A ke /artist/B (misal klik "Artis Serupa"), onMount
   // saja cuma jalan sekali di navigasi pertama sehingga data lama nyangkut.
-  $: if (_id) load();
+  // Guard `_id !== _loadedFor` di sini biar gak nembak ulang request untuk
+  // ID yang sama persis (lihat catatan di atas `_loadedFor`).
+  $: if (_id && _id !== _loadedFor) load(_id);
 
-  async function load() {
+  async function load(id) {
+    const myToken = ++_loadToken;
+    _loadedFor = id;
     _ld = true; _er = null;
     try {
-      _data = await _getArtist(_id);
+      const result = await _getArtist(id);
+      if (myToken !== _loadToken) return; // ada request yang lebih baru, hasil ini dibuang
+      _data = result;
       if (!_data) _er = 'Artis tidak ditemukan';
     } catch (e) {
-      _er = e.message;
+      if (myToken !== _loadToken) return;
+      _data = null;
+      _er = e?.message || 'Gagal memuat data artis';
     } finally {
-      _ld = false;
+      if (myToken === _loadToken) _ld = false;
     }
   }
 

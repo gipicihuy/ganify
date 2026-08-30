@@ -97,6 +97,16 @@ export async function GET({ url }) {
       }
     }
 
+    // browseId yang gak valid/gak dikenali YT Music biasanya tetap balik
+    // response 200 (bukan error), cuma header & semua section-nya kosong.
+    // Tanpa cek ini, endpoint selalu balikin status:true walau isinya
+    // kosong total — front-end (halaman /artist) nganggepnya "artist
+    // ditemukan" padahal harusnya nampilin state "tidak ditemukan".
+    const hasContent = !!name || topSongs.length || topAlbums.length || topSingles.length || similarArtists.length;
+    if (!hasContent) {
+      return new Response(JSON.stringify({ status: false, message: 'Artis tidak ditemukan' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+
     return new Response(JSON.stringify({
       status: true,
       result: {

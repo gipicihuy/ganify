@@ -136,10 +136,28 @@ export async function _getAlbum(id) {
   return j.status ? j.result : null;
 }
 
+// Timeout pengaman: /api/artist di baliknya nembak youtubei browse ke YT
+// Music, kalau upstream-nya hang/stall (bukan error biasa, beneran gak
+// respon) fetch ini bisa nggantung tanpa pernah resolve/reject sama
+// sekali — bikin halaman artist stuck loading selamanya. Ini bukan
+// pengganti perbaikan root cause di halaman artist (race condition
+// reactive load di +page.svelte), tapi jaring pengaman kalau upstream-nya
+// sendiri yang macet.
+const _ARTIST_TIMEOUT_MS = 15000;
+
 export async function _getArtist(id) {
-  const r = await fetch(`/api/artist?id=${encodeURIComponent(id)}`);
-  const j = await r.json();
-  return j.status ? j.result : null;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), _ARTIST_TIMEOUT_MS);
+  try {
+    const r = await fetch(`/api/artist?id=${encodeURIComponent(id)}`, { signal: controller.signal });
+    const j = await r.json();
+    return j.status ? j.result : null;
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('Gagal memuat data artis, coba lagi');
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 export async function _getSongInfo(videoId) {

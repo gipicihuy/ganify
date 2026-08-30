@@ -8,7 +8,7 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _g9, _getHome } from '$lib/api.js';
+  import { _g9, _getHome, _getArtist } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
   import { getPlaylists, createPlaylist } from '$lib/playlist.js';
 
@@ -66,11 +66,30 @@
   // artis populer tertentu (mis. "Raim Laode", "Taylor Swift", "Justin
   // Bieber"), sama seperti cara YT Music nampilin hasil pencarian artist -
   // jadi section ini konsisten isinya, gak bergantung ke feed lagu.
+  // Sistemnya HYBRID: default-nya dynamic search + exact-match + pemilihan
+  // audiens terbanyak (buat hindarin clone/duplikat), TAPI kalau ada artis
+  // yang tetap ambigu walau sudah divalidasi begitu (mis. clone-nya justru
+  // punya audiens lebih banyak dari akun resmi), boleh di-override langsung
+  // ke artist/channel ID via _popularArtistOverrides di bawah.
   const _popularArtistQueries = [
     'Raim Laode', 'Taylor Swift', 'Justin Bieber', 'Tulus', 'Rich Brian',
     'Bruno Mars', 'Dua Lipa', 'The Weeknd', 'Ariana Grande', 'Sheila On 7',
     'Weird Genius', 'NIKI'
   ];
+
+  // Sebagian artis punya banyak channel/akun clone-duplikat yang pakai nama
+  // PERSIS sama dengan artisnya (kadang subscriber clone-nya malah lebih
+  // banyak dari akun resmi), jadi validasi exact-match + audiens terbanyak
+  // di bawah masih bisa salah pilih. Buat kasus begini, override langsung ke
+  // artist/channel ID yang sudah dipastikan benar (manual verified) - key-nya
+  // dinormalisasi (_normArtistName) biar cocok sama entri di
+  // _popularArtistQueries apa adanya. Detail (nama, thumbnail, dst) TETAP
+  // diambil LIVE dari endpoint /api/artist tiap kali dipakai, BUKAN
+  // di-hardcode - jadi kalau YT Music update nama/foto profil artisnya,
+  // section ini otomatis ikut ke-update juga.
+  const _popularArtistOverrides = {
+    'raim laode': 'UC6CRezCe1QhJfNpdTOXx5Sg'
+  };
 
   // Parse angka audiens ("pendengar bulanan"/"subscriber"/dst) dari subtitle
   // hasil search. Dipakai buat mutusin channel MANA yang beneran dimaksud
@@ -140,43 +159,81 @@
   // gara-gara hiccup jaringan sesaat, bukan karena artisnya beneran gak ada.
   // Tanpa bypassCache, retry percuma karena _g9 bakal balikin hasil "kosong"
   // yang sama persis dari cache-nya sendiri.
-  async function _searchArtistWithRetry(name, i) {
+  // `force`: dipakai pas user eksplisit refresh Artis Populer — percobaan
+  // PERTAMA juga langsung bypass cache (bukan cuma retry-nya), soalnya
+  // _searchMem di api.js itu cache in-memory tanpa TTL (bertahan seumur
+  // sesi SPA), jadi tanpa ini refresh gak bakal pernah benar-benar nembak
+  // ulang ke YT Music buat artis yang search-nya udah pernah sukses.
+  async function _searchArtistWithRetry(name, i, force = false) {
     const group = `_home_artist_${i}`;
-    let r = await _g9(name, group).catch(() => null);
+    let r = await _g9(name, group, { bypassCache: force }).catch(() => null);
     if (r?.artists?.length) return r;
     await new Promise(res => setTimeout(res, 350));
     r = await _g9(name, group, { bypassCache: true }).catch(() => null);
     return r;
   }
 
-  async function _loadArtistsTop() {
+  // Ambil 1 entri "Artis Populer" berdasarkan hasil search dinamis (jalur
+  // default, dipakai kalau artisnya gak ada di _popularArtistOverrides).
+  async function _resolveArtistBySearch(name, i, force) {
+    const r = await _searchArtistWithRetry(name, i, force);
+    const wantedName = _normArtistName(name);
+    // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
+    // bisa collision sama artis lain yang namanya mirip/mengandung query.
+    // Kumpulin SEMUA hasil artist yang benar-benar exact match (case-
+    // insensitive, whitespace/embel-embel-normalized) dengan nama yang
+    // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
+    // daripada nampilin artis yang salah.
+    const matches = (r?.artists || []).filter(
+      a => a?.id && _normArtistName(a.title) === wantedName
+    );
+    if (!matches.length) return null;
+    // Bisa aja ada lebih dari satu channel dengan nama PERSIS sama (mis.
+    // akun clone/duplikat pakai nama artis asli). Dalam kasus gitu, pilih
+    // yang audiensnya (pendengar bulanan/subscriber) paling banyak — hampir
+    // selalu itu artisnya yang beneran, bukan clone-nya. Ini masih bisa
+    // salah kalau clone-nya justru punya audiens lebih gede (kasus kayak
+    // Raim Laode) — buat artis begini pakai override ID, bukan andalin
+    // heuristik audiens ini.
+    const best = matches.length === 1
+      ? matches[0]
+      : matches.reduce((a, b) => _parseAudienceCount(b.artist) > _parseAudienceCount(a.artist) ? b : a);
+    return { id: best.id, title: best.title, cover: best.cover };
+  }
+
+  // Ambil 1 entri "Artis Populer" dari artist/channel ID yang sudah
+  // di-override (dipastikan manual, bukan hasil search). Detailnya (nama,
+  // thumbnail) tetap live dari endpoint /api/artist yang sudah ada, jadi
+  // gak ada apa pun yang di-hardcode selain ID-nya sendiri.
+  async function _resolveArtistByOverride(id) {
+    try {
+      const data = await _getArtist(id);
+      if (!data?.name) return null;
+      return { id, title: data.name, cover: data.cover || '' };
+    } catch {
+      return null;
+    }
+  }
+
+  async function _resolveArtistEntry(name, i, force) {
+    const overrideId = _popularArtistOverrides[_normArtistName(name)];
+    if (overrideId) return _resolveArtistByOverride(overrideId);
+    return _resolveArtistBySearch(name, i, force);
+  }
+
+  async function _loadArtistsTop(force = false) {
     _artistsLoading = true;
     try {
-      const results = await _mapLimited(_popularArtistQueries, 4, _searchArtistWithRetry);
+      const results = await _mapLimited(
+        _popularArtistQueries, 4,
+        (name, i) => _resolveArtistEntry(name, i, force)
+      );
       const seen = new Set();
       const list = [];
-      results.forEach((r, i) => {
-        const wantedName = _normArtistName(_popularArtistQueries[i]);
-        // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
-        // bisa collision sama artis lain yang namanya mirip/mengandung query.
-        // Kumpulin SEMUA hasil artist yang benar-benar exact match (case-
-        // insensitive, whitespace/embel-embel-normalized) dengan nama yang
-        // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
-        // daripada nampilin artis yang salah.
-        const matches = (r?.artists || []).filter(
-          a => a?.id && _normArtistName(a.title) === wantedName
-        );
-        if (!matches.length) return;
-        // Bisa aja ada lebih dari satu channel dengan nama PERSIS sama
-        // (mis. akun clone/duplikat pakai nama artis asli). Dalam kasus
-        // gitu, pilih yang audiensnya (pendengar bulanan/subscriber) paling
-        // banyak — hampir selalu itu artisnya yang beneran, bukan clone-nya.
-        const best = matches.length === 1
-          ? matches[0]
-          : matches.reduce((a, b) => _parseAudienceCount(b.artist) > _parseAudienceCount(a.artist) ? b : a);
-        if (seen.has(best.id)) return;
-        seen.add(best.id);
-        list.push({ id: best.id, title: best.title, cover: best.cover });
+      results.forEach(entry => {
+        if (!entry?.id || seen.has(entry.id)) return;
+        seen.add(entry.id);
+        list.push(entry);
       });
       _artists = list;
     } catch {
@@ -407,7 +464,9 @@
         _loadTrending()
       ]);
       _saveCache();
-      await _loadArtistsTop();
+      // force=true: ini refresh eksplisit dari user, jadi Artis Populer
+      // harus benar-benar nembak ulang, bukan kebaca dari _searchMem lama.
+      await _loadArtistsTop(true);
       _saveCache();
     } finally {
       _refreshing = false;
