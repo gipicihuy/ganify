@@ -16,11 +16,19 @@ const RATE_LIMITED_PREFIXES = [
   '/api/liked',
   '/api/history',
   '/api/playlists',
-  '/api/me'
+  '/api/me',
+  '/api/announcements'
 ];
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 60;
+
+// Subset of API paths that act on the signed-in account itself, as opposed
+// to just serving/searching content. This is what a ban actually needs to
+// block per the "ditolak dari akses/account action" requirement — a banned
+// user can still browse, but can't like songs, build playlists, or edit
+// their profile/history.
+export const ACCOUNT_API_PREFIXES = ['/api/liked', '/api/history', '/api/playlists', '/api/me'];
 
 function isSameSiteRequest(event) {
   const secFetchSite = event.request.headers.get('sec-fetch-site');

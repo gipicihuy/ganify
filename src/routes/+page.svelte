@@ -11,6 +11,7 @@
   import { _g9, _getHome, _getArtist } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
   import { getPlaylists } from '$lib/playlist.js';
+  import NotificationBell from '$lib/NotificationBell.svelte';
 
   const __cv = _q8z;
 
@@ -530,6 +531,8 @@
       <div style="flex:1;min-width:0;display:flex;align-items:center;margin-left:-6px">
         <span style="font-size:1.35rem;font-weight:700;color:#FFFFFF;letter-spacing:-.02em;font-family:'PakTzy',sans-serif">GANIFY</span>
       </div>
+
+      <NotificationBell />
 
       <button
         on:click={_refresh}
