@@ -528,7 +528,7 @@
       </div>
 
       <div style="flex:1;min-width:0;display:flex;align-items:center;margin-left:-6px">
-        <span style="font-size:1.35rem;font-weight:700;color:#FFFFFF;letter-spacing:-.02em;font-family:'Quicksand',sans-serif">Ganify</span>
+        <span style="font-size:1.35rem;font-weight:700;color:#FFFFFF;letter-spacing:-.02em;font-family:'PakTzy',sans-serif">GANIFY</span>
       </div>
 
       <button
