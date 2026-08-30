@@ -72,6 +72,30 @@
     'Weird Genius', 'NIKI'
   ];
 
+  // Parse angka audiens ("pendengar bulanan"/"subscriber"/dst) dari subtitle
+  // hasil search. Dipakai buat mutusin channel MANA yang beneran dimaksud
+  // kalau ada lebih dari satu channel dengan nama PERSIS sama — misal ada
+  // akun clone/duplikat yang pakai nama artis asli. Gak perlu presisi
+  // sempurna, cukup buat bandingin mana yang jauh lebih gede.
+  function _parseAudienceCount(subtitle) {
+    if (!subtitle) return 0;
+    const s = String(subtitle).toLowerCase();
+    // Format singkatan dgn desimal koma, mis. "1,2 jt pendengar bulanan"
+    // atau "500 rb subscriber".
+    let m = s.match(/(\d+(?:,\d+)?)\s*(rb|ribu|jt|juta|m|b|miliar)\b/);
+    if (m) {
+      const num = parseFloat(m[1].replace(',', '.'));
+      const unit = m[2];
+      if (unit === 'rb' || unit === 'ribu') return num * 1e3;
+      if (unit === 'jt' || unit === 'juta' || unit === 'm') return num * 1e6;
+      return num * 1e9; // b / miliar
+    }
+    // Format angka penuh pakai titik ribuan, mis. "823.145 pendengar bulanan".
+    m = s.match(/(\d{1,3}(?:\.\d{3})+|\d+)\s*(pendengar|subscriber|audiens)/);
+    if (m) return parseInt(m[1].replace(/\./g, ''), 10) || 0;
+    return 0;
+  }
+
   // Normalisasi nama buat exact-match. Selain kapitalisasi/whitespace, hasil
   // search YT Music kadang nempelin embel-embel yang bukan bagian nama asli
   // artisnya — kanal auto-generated tanpa artist channel resmi suka disebut
@@ -111,29 +135,48 @@
     return results;
   }
 
+  // Cari 1 nama artis, dengan 1x retry (bypass cache) kalau percobaan
+  // pertama gagal total ATAU balik tanpa hasil artis sama sekali — biasanya
+  // gara-gara hiccup jaringan sesaat, bukan karena artisnya beneran gak ada.
+  // Tanpa bypassCache, retry percuma karena _g9 bakal balikin hasil "kosong"
+  // yang sama persis dari cache-nya sendiri.
+  async function _searchArtistWithRetry(name, i) {
+    const group = `_home_artist_${i}`;
+    let r = await _g9(name, group).catch(() => null);
+    if (r?.artists?.length) return r;
+    await new Promise(res => setTimeout(res, 350));
+    r = await _g9(name, group, { bypassCache: true }).catch(() => null);
+    return r;
+  }
+
   async function _loadArtistsTop() {
     _artistsLoading = true;
     try {
-      const results = await _mapLimited(
-        _popularArtistQueries, 4,
-        (name, i) => _g9(name, `_home_artist_${i}`).catch(() => null)
-      );
+      const results = await _mapLimited(_popularArtistQueries, 4, _searchArtistWithRetry);
       const seen = new Set();
       const list = [];
       results.forEach((r, i) => {
         const wantedName = _normArtistName(_popularArtistQueries[i]);
         // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
         // bisa collision sama artis lain yang namanya mirip/mengandung query.
-        // Cari kandidat di antara SEMUA hasil artist yang benar-benar exact
-        // match (case-insensitive, whitespace/embel-embel-normalized) dengan
-        // nama yang kita cari. Kalau gak ada satupun yang cocok persis, skip
-        // artis ini daripada nampilin artis yang salah.
-        const match = (r?.artists || []).find(
+        // Kumpulin SEMUA hasil artist yang benar-benar exact match (case-
+        // insensitive, whitespace/embel-embel-normalized) dengan nama yang
+        // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
+        // daripada nampilin artis yang salah.
+        const matches = (r?.artists || []).filter(
           a => a?.id && _normArtistName(a.title) === wantedName
         );
-        if (!match || seen.has(match.id)) return;
-        seen.add(match.id);
-        list.push({ id: match.id, title: match.title, cover: match.cover });
+        if (!matches.length) return;
+        // Bisa aja ada lebih dari satu channel dengan nama PERSIS sama
+        // (mis. akun clone/duplikat pakai nama artis asli). Dalam kasus
+        // gitu, pilih yang audiensnya (pendengar bulanan/subscriber) paling
+        // banyak — hampir selalu itu artisnya yang beneran, bukan clone-nya.
+        const best = matches.length === 1
+          ? matches[0]
+          : matches.reduce((a, b) => _parseAudienceCount(b.artist) > _parseAudienceCount(a.artist) ? b : a);
+        if (seen.has(best.id)) return;
+        seen.add(best.id);
+        list.push({ id: best.id, title: best.title, cover: best.cover });
       });
       _artists = list;
     } catch {

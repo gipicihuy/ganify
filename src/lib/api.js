@@ -59,13 +59,18 @@ function _normQ(q) {
   return String(q || '').trim().replace(/\s+/g, ' ');
 }
 
-export async function _g9(q, group = 'default') {
+export async function _g9(q, group = 'default', opts = {}) {
+  const { bypassCache = false } = opts;
   const key = _normQ(q);
-  if (_searchMem.has(key)) return _searchMem.get(key);
+  // bypassCache: dipakai buat retry query yang balik "kosong" (mis. 0
+  // artis) tapi request-nya sendiri sukses — kalau baca dari _searchMem
+  // biasa, retry-nya percuma karena bakal balik hasil "kosong" yang sama
+  // persis dari cache, bukan nembak ulang ke YT Music.
+  if (!bypassCache && _searchMem.has(key)) return _searchMem.get(key);
   // Same query already in flight (e.g. typing-debounce fired, then the user
   // picked a matching suggestion before it resolved) — reuse it instead of
   // firing a second identical request.
-  if (_searchInFlight.has(key)) return _searchInFlight.get(key);
+  if (!bypassCache && _searchInFlight.has(key)) return _searchInFlight.get(key);
 
   // A different query in the SAME group is still in flight — the user has
   // moved on, so that request (and the 3 YT Music calls behind it) is now
@@ -90,7 +95,7 @@ export async function _g9(q, group = 'default') {
       const j = await r.json();
       if (!j.d || !j.iv) return { query: key, totalSongs: 0, songs: [], albums: [], playlists: [], artists: [] };
       const result = await _decrypt(j.d, j.iv);
-      _searchMem.set(key, result);
+      if (!bypassCache) _searchMem.set(key, result);
       return result;
     } finally {
       _searchInFlight.delete(key);
@@ -98,7 +103,7 @@ export async function _g9(q, group = 'default') {
     }
   })();
 
-  _searchInFlight.set(key, p);
+  if (!bypassCache) _searchInFlight.set(key, p);
   return p;
 }
 
