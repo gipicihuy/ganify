@@ -189,7 +189,23 @@ export async function GET({ url }) {
     // detailnya mungkin gagal parse. microformat gak punya runs/link, jadi
     // gak ada attribution buat kasus fallback ini.
     if (!name) name = data?.microformat?.microformatDataRenderer?.title || '';
-    if (!description) description = data?.microformat?.microformatDataRenderer?.description || '';
+    if (!description) {
+      const mfDescription = data?.microformat?.microformatDataRenderer?.description || '';
+      // microformat.description BUKAN bio asli — itu ringkasan auto-generated
+      // YT Music yang isinya cuma kategori + statistik (mis. "Artist • 3.36M
+      // monthly audience" / "Artist • 12.3K subscribers"), dikasih ke SEMUA
+      // channel artist termasuk yang gak nulis bio sama sekali. Root cause
+      // kenapa "Tentang Artist" nampilin angka monthly audience LAGI: dulu
+      // teks ini langsung dipakai apa adanya sebagai description tanpa
+      // dicek dulu apa isinya beneran bio atau cuma auto-stat text — jadi
+      // buat artist yang gak punya bio (kaya Sadewok), teks stat yang SAMA
+      // persis dengan monthlyAudience di atas ke-duplikat di card bio.
+      // Kalau match pola ini, treat sebagai "gak ada bio" (biarin kosong)
+      // supaya card "Tentang Artist" simply gak dirender - JANGAN diganti
+      // teks placeholder apapun, biar jujur soal data yang memang gak ada.
+      const isAutoStatOnly = /^[a-z &]+\s*[•·]\s*[\d.,]+\s*[a-z]*\s*(monthly\s+(listeners?|audience)|subscribers?)\.?$/i.test(mfDescription.trim());
+      description = isAutoStatOnly ? '' : mfDescription;
+    }
     if (thumbnails.length === 0) {
       const mfThumbs = data?.microformat?.microformatDataRenderer?.thumbnail?.thumbnails || [];
       if (mfThumbs.length) thumbnails = transformThumbs(mfThumbs);

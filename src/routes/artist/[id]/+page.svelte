@@ -279,7 +279,7 @@
   .artist-audience {
     font-size: .8rem;
     font-weight: 600;
-    color: rgba(245,245,245,.72);
+    color: rgba(245,245,245,.55);
     letter-spacing: .01em;
     line-height: 1.4;
     margin: 0;
