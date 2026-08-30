@@ -249,9 +249,12 @@
             <img src={a.cover} alt={a.title} style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.15)" loading="lazy" />
             <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:100%">
               <span style="font-size:.7rem;font-weight:700;color:#F5F5F5;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{a.title}</span>
-              {#if _circleAudienceText(a.monthlyAudience)}
-                <span style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{_circleAudienceText(a.monthlyAudience)}</span>
-              {/if}
+              <!-- Sama kayak di home: baris audiens selalu dirender biar tinggi kartu rata,
+                   tapi kalau gak ada data, isinya placeholder invisible - bukan angka palsu. -->
+              <span aria-hidden={!_circleAudienceText(a.monthlyAudience)}
+                style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;{_circleAudienceText(a.monthlyAudience) ? '' : 'opacity:0'}">
+                {_circleAudienceText(a.monthlyAudience) || '\u00A0'}
+              </span>
             </div>
           </button>
         {/each}
