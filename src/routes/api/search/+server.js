@@ -141,20 +141,88 @@ function extractRows(data) {
   return rows;
 }
 
-// `rows` di sini SELALU datang dari `artistsData`, yaitu response YT Music
-// yang sudah di-filter ke kategori "Artists" lewat parameter search sendiri
-// (lihat `fetchYoutube(query, 'artists')`) — jadi baris yang nyampe sini
-// memang sudah artis semua menurut YT Music sendiri. Dulu ada filter
-// tambahan yang cuma nerima row kalau subtitle-nya ngandung kata kunci
-// tertentu ('artist'/'pendengar'/'audiens'/'subscriber'), padahal subtitle
-// itu variasinya banyak & tergantung locale/status verifikasi artisnya
-// (mis. cuma nampilin genre, "Verified", follower count dengan istilah lain,
-// dll) — hasilnya row artis yang valid malah ke-drop dan array `artists`
-// jadi kosong sama sekali. Dedup by browseId (lewat `dedupeBy` di
-// performSearch) sudah cukup buat jaga integritas datanya, jadi filter
-// subtitle ini dibuang.
-function rowsToArtists(rows) {
-  return rows.map(({ browseId, title, subtitle, thumb }) => ({ id: browseId, title, artist: subtitle, cover: thumb }));
+function rowsToArtistMeta(rows) {
+  const byId = new Map();
+  for (const { browseId, title, subtitle, thumb } of rows) {
+    const entry = { id: browseId, title, subtitle, cover: thumb };
+    if (browseId && !byId.has(browseId)) byId.set(browseId, entry);
+  }
+  return byId;
+}
+
+function parseCompactCount(text) {
+  if (!text) return 0;
+  const m = String(text).toLowerCase().match(/([\d]+(?:[.,]\d+)?)\s*(rb|ribu|jt|juta|k|m|b)?/);
+  if (!m) return 0;
+  const num = parseFloat(m[1].replace(',', '.'));
+  if (isNaN(num)) return 0;
+  const unit = m[2];
+  if (unit === 'rb' || unit === 'ribu' || unit === 'k') return num * 1e3;
+  if (unit === 'jt' || unit === 'juta' || unit === 'm') return num * 1e6;
+  if (unit === 'b') return num * 1e9;
+  return num;
+}
+
+function buildArtistsFromSongs(songs, artistRows) {
+  const byId = rowsToArtistMeta(artistRows);
+  const candidates = new Map();
+
+  songs.forEach((song, index) => {
+    const name = (song.artist || '').trim();
+    if (!name) return;
+    const id = song.artistId || '';
+    if (!id) return;
+    const meta = byId.get(id);
+    const key = id;
+    const audience = meta ? parseCompactCount(meta.subtitle) : 0;
+    const existing = candidates.get(key);
+    if (existing) {
+      existing.frequency += 1;
+      existing.bestRank = Math.min(existing.bestRank, index);
+    } else {
+      candidates.set(key, {
+        id,
+        name: meta ? meta.title : name,
+        cover: meta ? meta.cover : song.thumbnail || '',
+        audience,
+        frequency: 1,
+        bestRank: index
+      });
+    }
+  });
+
+  const groups = new Map();
+  for (const candidate of candidates.values()) {
+    const groupKey = candidate.name.trim().toLowerCase();
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey).push(candidate);
+  }
+
+  const merged = [];
+  for (const group of groups.values()) {
+    let representative = group[0];
+    for (const candidate of group) {
+      if (candidate.audience > representative.audience) representative = candidate;
+      else if (candidate.audience === representative.audience && candidate.bestRank < representative.bestRank) representative = candidate;
+    }
+    merged.push({
+      id: representative.id,
+      title: representative.name,
+      artist: representative.name,
+      cover: representative.cover,
+      bestRank: Math.min(...group.map(c => c.bestRank)),
+      frequency: group.reduce((sum, c) => sum + c.frequency, 0),
+      audience: representative.audience
+    });
+  }
+
+  merged.sort((a, b) => {
+    if (a.bestRank !== b.bestRank) return a.bestRank - b.bestRank;
+    if (b.frequency !== a.frequency) return b.frequency - a.frequency;
+    return b.audience - a.audience;
+  });
+
+  return merged.map(({ id, title, artist, cover }) => ({ id, title, artist, cover }));
 }
 
 function rowsToAlbumsAndPlaylists(rows) {
@@ -272,9 +340,6 @@ async function performSearch(rawQuery) {
   const cached = _cacheGet(query);
   if (cached) return cached;
 
-  // Fetch each category the same way ArcelMusic / the original API does:
-  // one YT Music Remix request per type, results kept in the exact order
-  // YT Music's own ranking returns them in. No client-side re-scoring.
   const [songsData, playlistsData, artistsData] = await Promise.all([
     fetchYoutube(query, 'songs').catch(() => null),
     fetchYoutube(query, 'playlists').catch(() => null),
@@ -282,7 +347,7 @@ async function performSearch(rawQuery) {
   ]);
 
   const songs = dedupeBy(extractSongRows(songsData), s => s.videoId);
-  const artists = dedupeBy(rowsToArtists(extractRows(artistsData)), a => a.id);
+  const artists = buildArtistsFromSongs(songs, extractRows(artistsData));
   const { albums, playlists } = rowsToAlbumsAndPlaylists(extractRows(playlistsData));
 
   const result = {
