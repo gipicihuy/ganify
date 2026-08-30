@@ -778,7 +778,7 @@
 
 <BindPrompt />
 
-<div style="padding-bottom:{$_q8z ? '11rem' : '4.5rem'}">
+<div style="padding-bottom:{_rt.startsWith('/banned') || _rt.startsWith('/maintenance') ? '0' : ($_q8z ? '11rem' : '4.5rem')}">
   <slot />
 </div>
 
@@ -1301,6 +1301,7 @@
   </div>
 {/if}
 
+{#if !_rt.startsWith('/banned') && !_rt.startsWith('/maintenance')}
 <nav class="bottom-nav">
   <ul class="bottom-nav-list">
     {#each _navItems as [p, l, ic], i}
@@ -1315,6 +1316,7 @@
     {/each}
   </ul>
 </nav>
+{/if}
 
 <style>
   .bottom-nav {

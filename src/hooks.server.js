@@ -147,6 +147,15 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
     // and let browsing continue quietly - now every other route is stopped
     // server-side, not just hidden in the UI, so there's no route left that
     // still works for them besides seeing why they were banned.
+    //
+    // Redirect unconditionally here (not gated behind an `accept: text/html`
+    // check) - clicking a bottom-nav link is a client-side SvelteKit
+    // navigation, which fetches page data via a background request rather
+    // than a full document load, so it doesn't send `accept: text/html`.
+    // Gating the redirect on that header let those clicks slip past this
+    // guard and actually change the page even though a full reload would
+    // immediately bounce back to /banned - the redirect below is followed
+    // by SvelteKit's client router either way, so it works for both cases.
     if (user?.is_banned) {
       if (path.startsWith('/api/')) {
         return new Response(
@@ -154,9 +163,7 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
           { status: 403, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (event.request.headers.get('accept')?.includes('text/html')) {
-        return new Response(null, { status: 302, headers: { location: '/banned' } });
-      }
+      return new Response(null, { status: 302, headers: { location: '/banned' } });
     }
 
     if (!isAdmin) {
@@ -168,9 +175,7 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
             headers: { 'Content-Type': 'application/json' }
           });
         }
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return new Response(null, { status: 302, headers: { location: '/maintenance' } });
-        }
+        return new Response(null, { status: 302, headers: { location: '/maintenance' } });
       }
     }
   } catch (err) {
