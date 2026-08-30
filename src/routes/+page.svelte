@@ -8,7 +8,7 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _g9, _getArtist, _getHome } from '$lib/api.js';
+  import { _g9, _getHome } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
   import { getPlaylists, createPlaylist } from '$lib/playlist.js';
 
@@ -60,27 +60,33 @@
     return (item.artistId || item.author || item.title || '').toLowerCase();
   }
 
-  // "Artis" diambil dari artistId lagu yang benar-benar sedang tampil di
-  // feed/mood aktif (_ds) — bukan daftar tebakan statis — jadi selalu relevan
-  // dengan apa yang lagi direkomendasikan ke user saat itu.
+  // "Artis Populer" dulu diambil dari artistId lagu yang lagi tampil di feed
+  // (_ds), jadi isinya cuma sebanyak/seberagam artis yang kebetulan muncul di
+  // mood aktif. Sekarang ngirim request ke endpoint search buat nama-nama
+  // artis populer tertentu (mis. "Raim Laode", "Taylor Swift", "Justin
+  // Bieber"), sama seperti cara YT Music nampilin hasil pencarian artist -
+  // jadi section ini konsisten isinya, gak bergantung ke feed lagu.
+  const _popularArtistQueries = [
+    'Raim Laode', 'Taylor Swift', 'Justin Bieber', 'Tulus', 'Rich Brian',
+    'Bruno Mars', 'Dua Lipa', 'The Weeknd', 'Ariana Grande', 'Sheila On 7',
+    'Weird Genius', 'NIKI'
+  ];
+
   async function _loadArtistsTop() {
     _artistsLoading = true;
     try {
+      const results = await Promise.all(
+        _popularArtistQueries.map((name, i) => _g9(name, `_home_artist_${i}`).catch(() => null))
+      );
       const seen = new Set();
-      const ids = [];
-      for (const item of _ds) {
-        if (item.artistId && !seen.has(item.artistId)) {
-          seen.add(item.artistId);
-          ids.push(item.artistId);
-        }
-        if (ids.length >= 10) break;
+      const list = [];
+      for (const r of results) {
+        const a = r?.artists?.[0];
+        if (!a || !a.id || seen.has(a.id)) continue;
+        seen.add(a.id);
+        list.push({ id: a.id, title: a.title, cover: a.cover });
       }
-      if (!ids.length) { _artists = []; return; }
-      const results = await Promise.all(ids.map(id => _getArtist(id).catch(() => null)));
-      _artists = results
-        .filter(Boolean)
-        .map(r => ({ id: r.artistId, title: r.name, cover: r.cover }))
-        .filter(a => a.id && a.title);
+      _artists = list;
     } catch {
       _artists = [];
     } finally {
@@ -91,13 +97,15 @@
   // Query fallback kalau FEmusic_home gagal/kosong (mis. YT Music menolak
   // request tanpa sesi login) — biar section tetap ada isinya, bukan hilang.
   const _trendingFallbackQueries = [
-    'Lagu Viral 2026'
+    'Lagu Viral 2026',
+    'Trending Music Indonesia',
+    'Top Hits 2026'
   ];
 
   async function _loadTrendingFallback() {
     try {
       const results = await Promise.all(
-        _trendingFallbackQueries.map(q => _g9(q, '_home_trending').catch(() => null))
+        _trendingFallbackQueries.map((q, i) => _g9(q, `_home_trending_${i}`).catch(() => null))
       );
       const seen = new Set();
       const pool = [];
@@ -118,16 +126,27 @@
     _trendingLoading = true;
     try {
       const home = await _getHome();
-      const pool = (home?.songs || []).filter(s => s.videoId);
+      let pool = (home?.songs || []).filter(s => s.videoId);
+
+      // FEmusic_home kadang balik pool yang tipis (mis. continuation gagal
+      // di tengah jalan) — cukup buat isi "Lagi Rame Diputar" tapi gak sisa
+      // buat "Campuran Untukmu", jadi section itu hilang padahal home-nya
+      // sendiri sukses. Tambahin (bukan gantiin) dari fallback query kalau
+      // pool masih tipis, biar dua section tetap keisi.
+      if (pool.length < 20) {
+        const seen = new Set(pool.map(s => s.videoId));
+        const extra = (await _loadTrendingFallback()).filter(s => !seen.has(s.videoId));
+        pool = pool.concat(extra);
+      }
+
       if (pool.length) {
         // `pool` sudah terurut dari yang paling sering muncul di berbagai
         // shelf FEmusic_home (paling "rame"/didorong) ke yang paling jarang.
         _trending = pool.slice(0, 12);
         _mix = _shuffle(pool.slice(12));
       } else {
-        const shuffled = await _loadTrendingFallback();
-        _trending = shuffled.slice(0, 12);
-        _mix = shuffled.slice(12);
+        _trending = [];
+        _mix = [];
       }
     } catch {
       const shuffled = await _loadTrendingFallback();
@@ -139,9 +158,11 @@
 
     // Feed utama (_getHome) kadang gagal/kosong di percobaan pertama (lihat
     // catatan di atas _trendingFallbackQueries), dan sesekali fallback-nya
-    // juga ikut kena hiccup. Daripada section ini "hilang" sampai user
-    // pencet refresh manual, coba ulang sendiri beberapa kali dengan jeda.
-    if (!_trending.length && attempt < 2) {
+    // juga ikut kena hiccup. Daripada salah satu section ini "hilang" sampai
+    // user pencet refresh manual, coba ulang sendiri beberapa kali dengan
+    // jeda — dicek dua-duanya, bukan cuma trending, karena mix bisa kosong
+    // sendiri walau trending udah keisi.
+    if ((!_trending.length || !_mix.length) && attempt < 2) {
       await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
       await _loadTrending(attempt + 1);
     }
@@ -205,8 +226,7 @@
   async function _pickMood(i) {
     if (_activeMood === i) return;
     _activeMood = i;
-    await _loadFeed(i);
-    await _loadArtistsTop();
+    await Promise.all([_loadFeed(i), _loadArtistsTop()]);
     _saveCache();
   }
 
@@ -215,7 +235,8 @@
     _refreshing = true;
     try {
       await Promise.all([
-        _loadFeed(_activeMood).then(_loadArtistsTop),
+        _loadFeed(_activeMood),
+        _loadArtistsTop(),
         _loadTrending()
       ]);
       _saveCache();
@@ -248,7 +269,8 @@
     }
 
     await Promise.all([
-      _loadFeed(_activeMood).then(_loadArtistsTop),
+      _loadFeed(_activeMood),
+      _loadArtistsTop(),
       _loadTrending()
     ]);
     _saveCache();
@@ -631,7 +653,7 @@
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
-          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis</span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Artis Populer</span>
         </div>
         <div class="hscroll hide-scrollbar">
           {#each _artists as a, i}
