@@ -7,6 +7,11 @@
 
   let _data = null, _ld = true, _er = null;
   let _loadingId = null;
+  // State expand/collapse buat deskripsi/bio artist. Direset tiap kali
+  // load() jalan (lihat di bawah) supaya pas pindah ke artist lain
+  // (mis. dari "Artis Serupa") state "Selengkapnya" dari artist
+  // sebelumnya gak kebawa nyangkut ke artist yang baru.
+  let _bioExpanded = false;
   // ID yang datanya lagi ditampilkan/lagi diproses oleh load() saat ini.
   // Root cause loading yang gak pernah selesai: `$: if (_id) load();`
   // dulunya nembak load() lagi tiap kali blok reaktif ini ke-invalidate,
@@ -34,6 +39,7 @@
     const myToken = ++_loadToken;
     _loadedFor = id;
     _ld = true; _er = null;
+    _bioExpanded = false;
     try {
       const result = await _getArtist(id);
       if (myToken !== _loadToken) return; // ada request yang lebih baru, hasil ini dibuang
@@ -47,6 +53,39 @@
       if (myToken === _loadToken) _ld = false;
     }
   }
+
+  // Metadata artist yang ditampilkan di header profile. Cuma pakai angka
+  // yang beneran ada di response /api/artist (jumlah item tiap section
+  // yang memang sudah dirender di halaman ini) — bukan follower/subscriber
+  // count, karena /api/artist (browse) sama sekali gak pernah mengembalikan
+  // field itu (lihat src/routes/api/artist/+server.js: hasil cuma berisi
+  // artistId, name, description, cover, topSongs, topAlbums, topSingles,
+  // playlists, similarArtists). Dulu area info artist cuma nampilin
+  // `description` mentah dari YT Music, dan buat sebagian artist field itu
+  // isinya bukan bio beneran (kosong atau cuma teks pendek generik) —
+  // makanya kelihatan "kadang audience-like, kadang description, kadang
+  // gak ada apa-apa". Dengan chip metadata ini, header profile selalu
+  // konsisten menampilkan ringkasan katalog yang tersedia, terpisah total
+  // dari section bio di bawahnya.
+  $: _artistStats = _data ? [
+    _data.topSongs?.length ? `${_data.topSongs.length} Lagu` : null,
+    _data.topAlbums?.length ? `${_data.topAlbums.length} Album` : null,
+    _data.topSingles?.length ? `${_data.topSingles.length} Single & EP` : null,
+    _data.playlists?.length ? `${_data.playlists.length} Playlist` : null,
+    _data.similarArtists?.length ? `${_data.similarArtists.length} Artis Serupa` : null
+  ].filter(Boolean) : [];
+
+  // Heuristik panjang teks buat nentuin apakah bio perlu tombol
+  // expand/collapse. Sebelumnya dipaksa clamp 3 baris via CSS
+  // `-webkit-line-clamp` TANPA ada cara buat lihat sisa teksnya — hasilnya
+  // teks kepotong "..." mati tanpa mekanisme buka/tutup. Threshold di sini
+  // dicocokkan ke lebar container bio (max-width 440px, font .82rem,
+  // line-clamp 4 baris di CSS) supaya tombol cuma muncul kalau teksnya
+  // memang bakal overflow.
+  $: _bioIsLong = !!_data?.description && (
+    _data.description.length > 220 ||
+    (_data.description.match(/\n/g) || []).length >= 3
+  );
 
   async function _pl(item, idx, queue) {
     _loadingId = item.videoId;
@@ -96,14 +135,31 @@
       <p style="font-size:.875rem">{_er}</p>
     </div>
   {:else if _data}
-    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:8px 0 26px">
+    <div class="artist-header">
       <img src={_data.cover} alt={_data.name} class="artist-photo" loading="lazy" />
-      <h1 style="font-size:1.4rem;font-weight:700;color:#FFFFFF;margin:0">{_data.name}</h1>
-      {#if _data.description}
-        <p style="font-size:.75rem;color:rgba(245,245,245,.45);line-height:1.5;max-width:440px;
-          display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">{_data.description}</p>
+      <h1 class="artist-name">{_data.name}</h1>
+
+      {#if _artistStats.length > 0}
+        <div class="artist-stats">
+          {#each _artistStats as stat, i}
+            {#if i > 0}<span class="artist-stats-dot" aria-hidden="true">•</span>{/if}
+            <span class="artist-stat">{stat}</span>
+          {/each}
+        </div>
       {/if}
     </div>
+
+    {#if _data.description}
+      <div class="artist-bio">
+        <span class="artist-bio-label">Tentang Artist</span>
+        <p class="artist-bio-text" class:is-clamped={_bioIsLong && !_bioExpanded}>{_data.description}</p>
+        {#if _bioIsLong}
+          <button type="button" class="artist-bio-toggle" on:click={() => _bioExpanded = !_bioExpanded}>
+            {_bioExpanded ? 'Lebih sedikit' : 'Selengkapnya'}
+          </button>
+        {/if}
+      </div>
+    {/if}
 
     {#if _data.topSongs?.length > 0}
       <div class="section-title" style="margin-bottom:12px">
@@ -193,4 +249,95 @@
 <style>
   .mini-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.2); border-top-color: #FFFFFF; animation: _mspin .7s linear infinite; }
   @keyframes _mspin { to { transform: rotate(360deg); } }
+
+  /* Header profile artist: foto, nama, dan ringkasan metadata katalog.
+     Selalu tampil dengan struktur yang sama untuk semua artist -- kalau
+     _artistStats kosong, blok statsnya cuma gak dirender, layout foto+nama
+     tetap konsisten (gak ada elemen lain yang "gantiin" tempatnya). */
+  .artist-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    padding: 8px 0 4px;
+  }
+  .artist-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.25;
+    margin: 0;
+  }
+  .artist-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    column-gap: 8px;
+    row-gap: 4px;
+    max-width: 440px;
+  }
+  .artist-stat {
+    font-size: .78rem;
+    font-weight: 600;
+    color: rgba(245,245,245,.72);
+    letter-spacing: .01em;
+  }
+  .artist-stats-dot {
+    font-size: .65rem;
+    color: rgba(245,245,245,.28);
+  }
+
+  /* Bio/deskripsi artist: section terpisah di bawah metadata, bukan
+     pengganti/kondisi "salah satu" dari metadata di atas. Rata kiri
+     (bukan center) supaya paragraf multi-baris tetap enak dibaca. */
+  .artist-bio {
+    max-width: 440px;
+    margin: 14px auto 26px;
+    padding: 14px 16px;
+    text-align: left;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .artist-bio-label {
+    display: block;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: rgba(245,245,245,.45);
+    margin-bottom: 8px;
+  }
+  .artist-bio-text {
+    font-size: .82rem;
+    font-weight: 500;
+    color: rgba(245,245,245,.75);
+    line-height: 1.65;
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: break-word;
+  }
+  .artist-bio-text.is-clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .artist-bio-toggle {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Quicksand', sans-serif;
+    font-size: .74rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .artist-bio-toggle:hover { color: rgba(255,255,255,.8); }
 </style>
