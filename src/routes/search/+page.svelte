@@ -437,10 +437,10 @@
         {/each}
       </div>
     {:else if _tab === 'albums'}
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-bottom:16px">
+      <div class="album-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-bottom:16px">
         {#each _albums as al, i}
           <button on:click={() => goto(`/album/${al.id}`)} class="glass-card animate-card-up"
-            style="border-radius:14px;padding:10px;background:none;cursor:pointer;text-align:left;animation-delay:{i*40}ms">
+            style="width:100%;min-width:0;border-radius:14px;padding:10px;background:none;cursor:pointer;text-align:left;animation-delay:{i*40}ms">
             <img src={al.cover} alt={al.title} style="width:100%;aspect-ratio:1;border-radius:10px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
             <p style="font-size:.78rem;font-weight:700;color:#F5F5F5;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.title}</p>
             <p style="font-size:.68rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{al.artist}</p>
@@ -471,4 +471,6 @@
     margin: 0 auto;
   }
   .song-grid > * { min-width: 0; }
+
+  .album-grid > * { min-width: 0; }
 </style>
