@@ -21,7 +21,7 @@
         <circle cx="220" cy="256" r="4" fill="#F5F5F5"/>
       </svg>
     </div>
-    <h1 style="font-size:1.3rem;font-weight:800;color:#FFFFFF;margin:0 0 4px;letter-spacing:-.02em">Ganify</h1>
+    <h1 style="font-size:1.3rem;font-weight:800;color:#FFFFFF;margin:0 0 4px;letter-spacing:-.02em;font-family:'PakTzy',sans-serif">GANIFY</h1>
     <p style="font-size:.78rem;color:rgba(255,255,255,.4);margin:0">Versi 1.0.0</p>
   </div>
 
