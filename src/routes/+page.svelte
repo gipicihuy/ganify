@@ -524,40 +524,11 @@
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
 
       <div style="position:relative;width:64px;height:64px;flex-shrink:0">
-        <svg width="64" height="64" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="512" height="512" rx="112" fill="#0D0D0D"/>
-          <path
-            d="M348 180
-               C322 151 282 136 238 136
-               C169 136 116 188 116 256
-               C116 324 169 376 238 376
-               C282 376 322 361 348 331
-               V256
-               H250"
-            stroke="#FFFFFF"
-            stroke-width="38"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle cx="220" cy="256" r="46" fill="#F5F5F5"/>
-          <circle cx="220" cy="256" r="38" stroke="#C8C8C8" stroke-width="2"/>
-          <circle cx="220" cy="256" r="31" stroke="#D5D5D5" stroke-width="2"/>
-          <g stroke="#0D0D0D" stroke-width="5" stroke-linecap="round">
-            <path d="M192 250V262"/>
-            <path d="M200 243V269"/>
-            <path d="M208 237V275"/>
-            <path d="M216 246V266"/>
-            <path d="M224 231V281"/>
-            <path d="M232 239V273"/>
-            <path d="M240 246V266"/>
-            <path d="M248 241V271"/>
-          </g>
-          <circle cx="220" cy="256" r="4" fill="#F5F5F5"/>
-        </svg>
+        <img src="/logo.png" alt="Ganify" width="64" height="64" style="width:64px;height:64px;display:block;border-radius:14px" />
       </div>
 
-      <div style="flex:1;min-width:0;display:flex;align-items:center">
-        <span style="font-size:1.75rem;font-weight:700;color:#FFFFFF;letter-spacing:-.02em;font-family:'Quicksand',sans-serif">Ganify</span>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;margin-left:-6px">
+        <span style="font-size:1.35rem;font-weight:700;color:#FFFFFF;letter-spacing:-.02em;font-family:'Quicksand',sans-serif">Ganify</span>
       </div>
 
       <button
