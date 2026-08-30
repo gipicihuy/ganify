@@ -141,12 +141,16 @@
   }
 
   const _ARTIST_TOP_TARGET = 12;
-  // Ambil kandidat sedikit lebih banyak dari target akhir (bukan jauh lebih
-  // banyak — tiap kandidat nembak 1 request ke /api/artist buat hydrate,
-  // jadi jangan kebanyakan) — beberapa artistId bisa gagal di-hydrate (mis.
-  // channel dihapus/dinonaktifkan), jadi ada cadangan buat gantiin tanpa
-  // perlu itung ulang skor dari awal.
-  const _ARTIST_CANDIDATE_POOL = 16;
+  // Ambil kandidat lebih banyak dari target akhir - dulu 16 udah cukup pas
+  // syarat lolosnya cuma "berhasil di-hydrate", tapi sekarang kita mau
+  // prioritasin yang PUNYA monthlyAudience (biar section-nya konsisten,
+  // semua kartu nampilin angka yang sama jenisnya - lihat _loadArtistsTop).
+  // Gak semua artis trending eligible buat metrik ini (lihat catatan di
+  // monthlyAudienceFromText/+server.js), jadi butuh kandidat lebih banyak
+  // biar peluang dapet 12 yang punya data lebih besar. Tetep dibatasin
+  // (bukan diambil semuanya) karena tiap kandidat nembak 1 request ke
+  // /api/artist buat hydrate.
+  const _ARTIST_CANDIDATE_POOL = 24;
 
   // Ambil detail 1 artis (nama, thumbnail, dst) LIVE dari endpoint
   // /api/artist yang sudah ada — gak ada satu pun bagian dari data
@@ -171,14 +175,22 @@
       if (!_homeArtistPool.length) await _loadTrending();
       const candidates = _scoreArtistsFromPool(_homeArtistPool).slice(0, _ARTIST_CANDIDATE_POOL);
       const hydrated = await _mapLimited(candidates, 4, c => _hydrateArtist(c.id));
+      // Prioritasin kandidat yang PUNYA monthlyAudience dulu (tetap dalam
+      // urutan skor "makin rame makin awal" dari _scoreArtistsFromPool),
+      // biar "Artis Populer" konsisten - semua kartu nampilin angka audiens,
+      // bukan campur ada-yang-ada-ada-yang-kosong. Kandidat yang gak punya
+      // data cuma dipakai sebagai pengisi KALAU yang punya data gak cukup
+      // buat nutupin _ARTIST_TOP_TARGET (bukan dibuang total) - biar
+      // section-nya tetap keisi walau lagi apes gak ada 12 yang eligible.
+      const withAudience = [];
+      const withoutAudience = [];
       const seen = new Set();
-      const list = [];
       hydrated.forEach(entry => {
-        if (!entry?.id || seen.has(entry.id) || list.length >= _ARTIST_TOP_TARGET) return;
+        if (!entry?.id || seen.has(entry.id)) return;
         seen.add(entry.id);
-        list.push(entry);
+        (entry.monthlyAudience != null ? withAudience : withoutAudience).push(entry);
       });
-      _artists = list;
+      _artists = [...withAudience, ...withoutAudience].slice(0, _ARTIST_TOP_TARGET);
     } catch {
       _artists = [];
     } finally {
