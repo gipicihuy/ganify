@@ -4,14 +4,14 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { ensureUser, linkGoogleAccount, getUserById } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 import { getClientIp, notifyGoogleLogin, runBackground } from '$lib/server/activityMonitor.js';
-import { guardApiRequest, ACCOUNT_API_PREFIXES } from '$lib/server/apiGuard.js';
+import { guardApiRequest } from '$lib/server/apiGuard.js';
 import { getMaintenanceMode } from '$lib/server/adminDb.js';
 
 // Paths that must always stay reachable, even during maintenance mode and
 // even for banned users, so that: (a) the admin can still sign in and reach
 // /control while the site is "down", and (b) auth/session plumbing itself
 // never gets locked out by the checks it needs to run.
-const ALWAYS_ALLOWED_PREFIXES = ['/control', '/api/admin', '/auth', '/login', '/logout', '/maintenance'];
+const ALWAYS_ALLOWED_PREFIXES = ['/control', '/api/admin', '/auth', '/login', '/logout', '/maintenance', '/banned'];
 
 function isAlwaysAllowed(pathname) {
   return ALWAYS_ALLOWED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -141,14 +141,22 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
     const adminEmail = event.platform?.env?.ADMIN_EMAIL;
     const isAdmin = !!user && !user.is_guest && !user.is_banned && !!adminEmail && user.email === adminEmail;
 
-    // Banned users are rejected from account-scoped actions (liked songs,
-    // history, playlists, profile edits, etc.) server-side, not just hidden
-    // in the UI. Browsing (home/search/stream) is left alone.
-    if (user?.is_banned && path.startsWith('/api/') && ACCOUNT_API_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
-      return new Response(JSON.stringify({ error: 'account_banned' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    // Banned users are locked out of the entire app except the /banned page
+    // itself (and the always-allowed paths above, e.g. /logout so they can
+    // still sign out). This used to only block account-scoped API prefixes
+    // and let browsing continue quietly - now every other route is stopped
+    // server-side, not just hidden in the UI, so there's no route left that
+    // still works for them besides seeing why they were banned.
+    if (user?.is_banned) {
+      if (path.startsWith('/api/')) {
+        return new Response(
+          JSON.stringify({ error: 'account_banned', reason: user.banned_reason || null }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (event.request.headers.get('accept')?.includes('text/html')) {
+        return new Response(null, { status: 302, headers: { location: '/banned' } });
+      }
     }
 
     if (!isAdmin) {
