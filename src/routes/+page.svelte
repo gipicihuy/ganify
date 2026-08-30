@@ -13,6 +13,29 @@
   import { getPlaylists } from '$lib/playlist.js';
 
   const __cv = _q8z;
+
+  // Format angka audiens bulanan (integer mentah dari /api/artist) jadi teks
+  // "Artis • X audiens bulanan" buat ditampilin di bawah tiap bulatan artis
+  // di "Artis Populer" - formatter yang sama persis dipakai di halaman
+  // /artist/[id] biar konsisten di seluruh app. Kalau monthlyAudience null
+  // (source emang gak nyediain metrik ini buat artist tsb), return string
+  // kosong - baris ini simply gak dirender, TANPA fallback ke metrik lain.
+  function _formatAudience(n) {
+    if (n == null) return '';
+    const abs = Math.abs(n);
+    let value, suffix;
+    if (abs >= 1e9) { value = n / 1e9; suffix = 'M'; }
+    else if (abs >= 1e6) { value = n / 1e6; suffix = 'jt'; }
+    else if (abs >= 1e3) { value = n / 1e3; suffix = 'rb'; }
+    else return `${n}`;
+    let str = value.toFixed(1);
+    if (str.endsWith('.0')) str = str.slice(0, -2);
+    return `${str.replace('.', ',')} ${suffix}`;
+  }
+  function _circleAudienceText(n) {
+    return n != null ? `Artis • ${_formatAudience(n)} audiens bulanan` : '';
+  }
+
   let _ds = [], _ld = true, _er = null;
   let _refreshing = false;
   let _collection = [];
@@ -133,7 +156,7 @@
     try {
       const data = await _getArtist(id);
       if (!data?.name) return null;
-      return { id, title: data.name, cover: data.cover || '' };
+      return { id, title: data.name, cover: data.cover || '', monthlyAudience: data.monthlyAudience ?? null };
     } catch {
       return null;
     }
@@ -802,6 +825,9 @@
               style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:9px;width:96px;background:none;border:none;cursor:pointer;padding:0;animation-delay:{i*30}ms">
               <img src={a.cover} alt={a.title} style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2)" loading="lazy" />
               <span style="font-size:.72rem;font-weight:600;color:rgba(245,245,245,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{a.title}</span>
+              {#if _circleAudienceText(a.monthlyAudience)}
+                <span style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block">{_circleAudienceText(a.monthlyAudience)}</span>
+              {/if}
             </button>
           {/each}
         </div>

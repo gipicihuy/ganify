@@ -54,7 +54,15 @@
     }
   }
 
-  // Angka audiens bulanan dikirim mentah (integer) dari /api/artist
+  // Baris kecil "Artis • X audiens bulanan" di bawah tiap bulatan artis
+  // (dipakai di "Artis Serupa"). Reuse _formatAudience yang sama dengan yang
+  // dipakai buat header, biar formatnya konsisten di seluruh halaman. Kalau
+  // monthlyAudience null (source emang gak nyediain buat artist tsb, lihat
+  // catatan di monthlyAudienceFromText/+server.js), return string kosong -
+  // baris ini simply gak dirender, BUKAN diganti subscriber count atau info lain.
+  function _circleAudienceText(n) {
+    return n != null ? `Artis • ${_formatAudience(n)} audiens bulanan` : '';
+  }
   // (hasil parse teks "X monthly listeners/audience" dari header YT Music —
   // lihat extractMonthlyAudience di +server.js). Kalau null berarti source
   // data memang gak nyediain metrik ini buat artist tsb — sengaja gak ada
@@ -240,6 +248,9 @@
           <button on:click={() => goto(`/artist/${a.id}`)} style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;flex-shrink:0">
             <img src={a.cover} alt={a.title} style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.15)" loading="lazy" />
             <span style="font-size:.7rem;font-weight:700;color:#F5F5F5;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{a.title}</span>
+            {#if _circleAudienceText(a.monthlyAudience)}
+              <span style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.5);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{_circleAudienceText(a.monthlyAudience)}</span>
+            {/if}
           </button>
         {/each}
       </div>

@@ -97,6 +97,14 @@ function parseCompactNumber(text) {
 // padanan ID-nya) sebagai sumber angka; subscriber count generik ("X
 // subscribers") sengaja gak dipakai sebagai pengganti, karena itu akan
 // nampilin metrik yang salah/bukan yang diminta.
+function monthlyAudienceFromText(text) {
+  if (!text) return null;
+  if (/monthly\s+(listeners?|audience)/i.test(text) || /(pendengar|audiens)\s+bulanan/i.test(text)) {
+    return parseCompactNumber(text);
+  }
+  return null;
+}
+
 function extractMonthlyAudience(h) {
   const candidates = [
     // Field asli dari Innertube buat metrik ini: `header.monthlyListenerCount.runs[0].text`
@@ -113,10 +121,8 @@ function extractMonthlyAudience(h) {
     getRunsText(h.subtitle?.runs || [])
   ];
   for (const c of candidates) {
-    if (/monthly\s+(listeners?|audience)/i.test(c) || /(pendengar|audiens)\s+bulanan/i.test(c)) {
-      const n = parseCompactNumber(c);
-      if (n !== null) return n;
-    }
+    const n = monthlyAudienceFromText(c);
+    if (n !== null) return n;
   }
   return null;
 }
@@ -243,16 +249,30 @@ export async function GET({ url }) {
               const rawItemThumbs = it.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
               const vId = it.navigationEndpoint?.watchEndpoint?.videoId || '';
               const thumbs = transformThumbs(rawItemThumbs, vId);
+              const subtitleText = getRunsText(it.subtitle?.runs || []);
               const parsed = {
                 title: getRunsText(it.title?.runs || []),
-                artist: getRunsText(it.subtitle?.runs || []),
+                artist: subtitleText,
                 id: it.navigationEndpoint?.browseEndpoint?.browseId || it.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
                 cover: thumbs[thumbs.length - 1]?.url || ''
               };
               if (/album/i.test(ht)) topAlbums.push(parsed);
               else if (/singles|ep/i.test(ht)) topSingles.push(parsed);
               else if (/playlist/i.test(ht)) playlists.push(parsed);
-              else if (/similar|fans/i.test(ht)) similarArtists.push(parsed);
+              else if (/similar|fans/i.test(ht)) {
+                // Card "Artis Serupa" ini varian compact (musicTwoRowItemRenderer),
+                // BUKAN header artist lengkap - jadi gak ada field monthlyListenerCount
+                // dedicated kaya di extractMonthlyAudience. Satu-satunya teks yang ada
+                // cuma subtitle, dan itu KADANG isinya "X monthly audience" (buat artist
+                // yang eligible) tapi kadang cuma "X subscribers" biasa (buat yang gak
+                // eligible) - dua-duanya sama-sama valid tampilan asli YT Music, cuma
+                // beda artist. Makanya di sini WAJIB dicek eksplisit polanya dulu lewat
+                // monthlyAudienceFromText, sama kayak logic di header: kalau subtitle-nya
+                // gak eksplisit nyebut "monthly audience/listeners", monthlyAudience
+                // dibiarin null (gak dirender) - TIDAK fallback ke angka subscriber di
+                // subtitle yang sama, biar gak nampilin metrik yang salah.
+                similarArtists.push({ ...parsed, monthlyAudience: monthlyAudienceFromText(subtitleText) });
+              }
             }
           }
         }
