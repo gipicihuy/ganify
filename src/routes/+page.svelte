@@ -72,6 +72,13 @@
     'Weird Genius', 'NIKI'
   ];
 
+  // Normalisasi nama buat exact-match: lowercase + kompres whitespace, biar
+  // beda kapitalisasi ("Tulus" vs "tulus") atau spasi ganda/leading/trailing
+  // tetap dianggap sama tanpa jadi longgar ke arah partial/fuzzy match.
+  function _normArtistName(s) {
+    return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
   async function _loadArtistsTop() {
     _artistsLoading = true;
     try {
@@ -80,12 +87,21 @@
       );
       const seen = new Set();
       const list = [];
-      for (const r of results) {
-        const a = r?.artists?.[0];
-        if (!a || !a.id || seen.has(a.id)) continue;
-        seen.add(a.id);
-        list.push({ id: a.id, title: a.title, cover: a.cover });
-      }
+      results.forEach((r, i) => {
+        const wantedName = _normArtistName(_popularArtistQueries[i]);
+        // Jangan langsung percaya hasil pertama (r.artists[0]) — hasil search
+        // bisa collision sama artis lain yang namanya mirip/mengandung query.
+        // Cari kandidat di antara SEMUA hasil artist yang benar-benar exact
+        // match (case-insensitive, whitespace-normalized) dengan nama yang
+        // kita cari. Kalau gak ada satupun yang cocok persis, skip artis ini
+        // daripada nampilin artis yang salah.
+        const match = (r?.artists || []).find(
+          a => a?.id && _normArtistName(a.title) === wantedName
+        );
+        if (!match || seen.has(match.id)) return;
+        seen.add(match.id);
+        list.push({ id: match.id, title: match.title, cover: match.cover });
+      });
       _artists = list;
     } catch {
       _artists = [];
@@ -122,10 +138,60 @@
     }
   }
 
+  // Query terpisah buat nyari lagu Indonesia yang lagi viral/rame saat ini,
+  // dipakai sebagai sumber PRIORITAS tambahan (bukan gantiin) buat "Lagi
+  // Rame Diputar" & "Campuran Untukmu" — tujuannya biar dua section itu
+  // lebih condong ke lagu Indonesia yang lagi viral, tanpa bikin homepage
+  // isinya lagu Indonesia doang (lihat _interleavePriority di bawah).
+  const _viralIndoQueries = [
+    'Lagu Indonesia Viral',
+    'Lagu Indonesia Viral Tiktok',
+    'Lagu Indonesia Trending'
+  ];
+
+  async function _loadViralIndo() {
+    try {
+      const results = await Promise.all(
+        _viralIndoQueries.map((q, i) => _g9(q, `_home_viral_indo_${i}`).catch(() => null))
+      );
+      const seen = new Set();
+      const pool = [];
+      for (const r of results) {
+        for (const s of (r?.songs || [])) {
+          if (!s.videoId || seen.has(s.videoId)) continue;
+          seen.add(s.videoId);
+          pool.push(s);
+        }
+      }
+      return _shuffle(pool);
+    } catch {
+      return [];
+    }
+  }
+
+  // Sisipin `priority` ke dalam `pool` secara berkala (1 item priority tiap
+  // `everyN` item pool) alih-alih ditumpuk semua di depan — biar lagu viral
+  // Indonesia kebagian porsi lebih besar di "Lagi Rame Diputar" (12 item
+  // pertama) DAN "Campuran Untukmu" (sisanya), tapi urutan/variasi asli dari
+  // feed YT Music (`pool`) tetap kepegang, gak ketiban semua di satu tempat.
+  function _interleavePriority(pool, priority, everyN = 2) {
+    if (!priority.length) return pool;
+    const result = [];
+    let pi = 0;
+    for (let i = 0; i < pool.length; i++) {
+      result.push(pool[i]);
+      if ((i + 1) % everyN === 0 && pi < priority.length) {
+        result.push(priority[pi++]);
+      }
+    }
+    while (pi < priority.length) result.push(priority[pi++]);
+    return result;
+  }
+
   async function _loadTrending(attempt = 0) {
     _trendingLoading = true;
     try {
-      const home = await _getHome();
+      const [home, viralIndo] = await Promise.all([_getHome(), _loadViralIndo()]);
       let pool = (home?.songs || []).filter(s => s.videoId);
 
       // FEmusic_home kadang balik pool yang tipis (mis. continuation gagal
@@ -142,6 +208,13 @@
       if (pool.length) {
         // `pool` sudah terurut dari yang paling sering muncul di berbagai
         // shelf FEmusic_home (paling "rame"/didorong) ke yang paling jarang.
+        // Sisipin lagu Indonesia viral (dedup terhadap pool) supaya lebih
+        // banyak muncul di beranda, dibatasi porsinya (interleave 1:2) biar
+        // tetap ada variasi internasional & dari feed YT Music yang asli.
+        const poolIds = new Set(pool.map(s => s.videoId));
+        const viralPicks = viralIndo.filter(s => !poolIds.has(s.videoId));
+        pool = _interleavePriority(pool, viralPicks, 2);
+
         _trending = pool.slice(0, 12);
         _mix = _shuffle(pool.slice(12));
       } else {
