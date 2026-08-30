@@ -14,6 +14,13 @@
   let _showRename = false;
   let _renameName = '';
   let _now = Date.now();
+  let _ctaSpotlight = false;
+  let _ctaSpotlightTimer = null;
+
+  function _dismissCtaSpotlight() {
+    _ctaSpotlight = false;
+    clearTimeout(_ctaSpotlightTimer);
+  }
 
   const _WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -55,11 +62,15 @@
     if (_tabParam === 'recent' || _tabParam === 'playlist' || _tabParam === 'liked') {
       _tab = _tabParam;
     }
+    if (_tab === 'playlist' && $page.url.searchParams.get('cta') === 'new') {
+      _ctaSpotlight = true;
+      _ctaSpotlightTimer = setTimeout(() => { _ctaSpotlight = false; }, 5000);
+    }
     getRecentlyPlayed().then((list) => _recentlyPlayed.set(list)).catch(() => {});
     getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
     getLikedSongs().then((list) => _likedSongs.set(list)).catch(() => {});
     const t = setInterval(() => { _now = Date.now(); }, 60000);
-    return () => clearInterval(t);
+    return () => { clearInterval(t); clearTimeout(_ctaSpotlightTimer); };
   });
 
   async function _doUnlike(track) {
@@ -205,13 +216,13 @@
     </div>
 
     <div class="lib-primary-nav">
-      <button class="lib-primary-tab" class:active={_tab === 'recent'} on:click={() => _tab='recent'}>
+      <button class="lib-primary-tab" class:active={_tab === 'recent'} on:click={() => { _tab='recent'; _dismissCtaSpotlight(); }}>
         Riwayat
       </button>
       <button class="lib-primary-tab" class:active={_tab === 'playlist'} on:click={() => _tab='playlist'}>
         Playlist
       </button>
-      <button class="lib-primary-tab" class:active={_tab === 'liked'} on:click={() => _tab='liked'}>
+      <button class="lib-primary-tab" class:active={_tab === 'liked'} on:click={() => { _tab='liked'; _dismissCtaSpotlight(); }}>
         Disukai
       </button>
       <div class="lib-primary-indicator" style="transform:translateX({_tab==='recent' ? 0 : _tab==='playlist' ? 100 : 200}%)"></div>
@@ -458,7 +469,8 @@
   {:else}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <span style="font-size:.75rem;color:rgba(245,245,245,.35);font-weight:600">{_pls.length} playlist</span>
-      <button on:click={() => _showNewPl = true}
+      <button on:click={() => { _showNewPl = true; _dismissCtaSpotlight(); }}
+        class:cta-spotlight={_ctaSpotlight}
         style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;
           background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);cursor:pointer;
           color:#FFFFFF;font-family:'Quicksand',sans-serif;font-size:.75rem;font-weight:700;transition:all .15s"
@@ -682,6 +694,14 @@
     animation: _ms .7s linear infinite;
   }
   @keyframes _ms { to { transform: rotate(360deg); } }
+
+  .cta-spotlight {
+    animation: _ctaPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes _ctaPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.35), 0 0 0 0 rgba(255,255,255,.18); }
+    50% { box-shadow: 0 0 0 5px rgba(255,255,255,.12), 0 0 18px 4px rgba(255,255,255,.28); }
+  }
 
   .lib-primary-nav {
     position: relative;

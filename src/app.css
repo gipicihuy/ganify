@@ -38,12 +38,17 @@ body {
 
 /* Scroll indicator tipis & subtle untuk carousel yang scrollbar-nya sengaja
    ditampilkan (Album, Single & EP, Artis Serupa) — tanpa ini, browser pakai
-   tinggi scrollbar horizontal default (~15px, tebal & mengganggu). */
-.hscroll:not(.hide-scrollbar) { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+   tinggi scrollbar horizontal default (~15px, tebal & mengganggu).
+   Thumb-nya transparan secara default dan cuma dinyalakan lewat class
+   `.is-scrolling` (di-toggle oleh JS selama user benar-benar scroll),
+   supaya efeknya gak langsung muncul begitu halaman dibuka. */
+.hscroll:not(.hide-scrollbar) { scrollbar-width: thin; scrollbar-color: transparent transparent; }
 .hscroll:not(.hide-scrollbar)::-webkit-scrollbar { height: 3px; }
 .hscroll:not(.hide-scrollbar)::-webkit-scrollbar-track { background: transparent; }
-.hscroll:not(.hide-scrollbar)::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 3px; }
+.hscroll:not(.hide-scrollbar)::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; transition: background-color .35s ease; }
 .hscroll:not(.hide-scrollbar)::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+.hscroll:not(.hide-scrollbar).is-scrolling { scrollbar-color: rgba(255,255,255,0.22) transparent; }
+.hscroll:not(.hide-scrollbar).is-scrolling::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
 
 .glass {
   background: rgba(40, 38, 30, 0.75);

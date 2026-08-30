@@ -10,7 +10,7 @@
   import { goto } from '$app/navigation';
   import { _g9, _getHome, _getArtist } from '$lib/api.js';
   import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
-  import { getPlaylists, createPlaylist } from '$lib/playlist.js';
+  import { getPlaylists } from '$lib/playlist.js';
 
   const __cv = _q8z;
   let _ds = [], _ld = true, _er = null;
@@ -481,30 +481,6 @@
     _showMenu.set(item);
     getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
-
-  let _showNewPl = false;
-  let _newPlName = '';
-
-  function focusScroll(node) {
-    function onFocus() {
-      setTimeout(() => {
-        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 320);
-    }
-    node.addEventListener('focus', onFocus);
-    return { destroy() { node.removeEventListener('focus', onFocus); } };
-  }
-
-  async function _doCreatePl() {
-    const name = _newPlName.trim();
-    if (!name) return;
-    _newPlName = '';
-    _showNewPl = false;
-    try {
-      await createPlaylist(name);
-      _playlists.set(await getPlaylists());
-    } catch {}
-  }
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:28px 16px 0">
@@ -779,7 +755,7 @@
           <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Playlist &amp; Album Pilihan</span>
         </div>
         <div class="hscroll hide-scrollbar">
-          <button on:click={() => _showNewPl = true}
+          <button on:click={() => goto('/library?tab=playlist&cta=new')}
             style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0">
             <div style="width:128px;height:128px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;
               background:rgba(255,255,255,.06);border:1.5px dashed rgba(255,255,255,.25)">
@@ -905,36 +881,6 @@
 
 </div>
 
-{#if _showNewPl}
-  <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"
-    on:click={() => _showNewPl = false}>
-    <div style="width:100%;max-width:400px;background:#1c1c1c;border-radius:20px;padding:24px 20px;border:1px solid rgba(255,255,255,.15)"
-      on:click|stopPropagation>
-      <p style="font-size:.95rem;font-weight:700;color:#FFFFFF;margin:0 0 16px">Playlist Baru</p>
-      <input
-        bind:value={_newPlName}
-        on:keydown={e => e.key === 'Enter' && _doCreatePl()}
-        placeholder="Nama playlist..."
-        style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.2);color:#F5F5F5;
-          font-family:'Quicksand',sans-serif;font-size:1rem;font-weight:500;
-          border-radius:12px;padding:12px 16px;outline:none;margin-bottom:14px;box-sizing:border-box"
-        autofocus
-        use:focusScroll
-      />
-      <div style="display:flex;gap:10px">
-        <button on:click={() => _showNewPl = false}
-          style="flex:1;padding:12px;border-radius:12px;background:rgba(255,255,255,.07);
-            border:1px solid rgba(255,255,255,.15);cursor:pointer;font-family:'Quicksand',sans-serif;
-            font-size:.85rem;font-weight:700;color:rgba(245,245,245,.6)">Batal</button>
-        <button on:click={_doCreatePl}
-          style="flex:1;padding:12px;border-radius:12px;background:linear-gradient(135deg,#FFFFFF,#E6E6E6);
-            border:none;cursor:pointer;font-family:'Quicksand',sans-serif;font-size:.85rem;font-weight:700;color:#141414">
-          Buat
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 <style>
   .mini-spin {

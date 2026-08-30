@@ -61,6 +61,22 @@
     _showMenu.set({ ...item, author: item.artist });
     getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
   }
+
+  function scrollGlow(node) {
+    let hideTimer;
+    function onScroll() {
+      node.classList.add('is-scrolling');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => node.classList.remove('is-scrolling'), 900);
+    }
+    node.addEventListener('scroll', onScroll, { passive: true });
+    return {
+      destroy() {
+        node.removeEventListener('scroll', onScroll);
+        clearTimeout(hideTimer);
+      }
+    };
+  }
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:20px 16px 0">
@@ -130,7 +146,7 @@
         <div class="bar"></div>
         <h2 style="font-size:1.05rem;font-weight:700;color:#F5F5F5;margin:0">Album</h2>
       </div>
-      <div class="hscroll" style="margin-bottom:26px">
+      <div class="hscroll" style="margin-bottom:26px" use:scrollGlow>
         {#each _data.topAlbums as al}
           <button on:click={() => goto(`/album/${al.id}`)} style="background:none;border:none;cursor:pointer;text-align:left;width:130px;flex-shrink:0">
             <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
@@ -146,7 +162,7 @@
         <div class="bar"></div>
         <h2 style="font-size:1.05rem;font-weight:700;color:#F5F5F5;margin:0">Single & EP</h2>
       </div>
-      <div class="hscroll" style="margin-bottom:26px">
+      <div class="hscroll" style="margin-bottom:26px" use:scrollGlow>
         {#each _data.topSingles as al}
           <button on:click={() => goto(`/album/${al.id}`)} style="background:none;border:none;cursor:pointer;text-align:left;width:130px;flex-shrink:0">
             <img src={al.cover} alt={al.title} style="width:130px;height:130px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
@@ -162,7 +178,7 @@
         <div class="bar"></div>
         <h2 style="font-size:1.05rem;font-weight:700;color:#F5F5F5;margin:0">Artis Serupa</h2>
       </div>
-      <div class="hscroll" style="margin-bottom:26px">
+      <div class="hscroll" style="margin-bottom:26px" use:scrollGlow>
         {#each _data.similarArtists as a}
           <button on:click={() => goto(`/artist/${a.id}`)} style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;flex-shrink:0">
             <img src={a.cover} alt={a.title} style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.15)" loading="lazy" />
