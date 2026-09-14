@@ -329,9 +329,11 @@ function extractTopResult(data) {
       const card = section?.musicCardShelfRenderer;
       if (!card) continue;
       const videoId = card?.onTap?.watchEndpoint?.videoId || '';
-      if (!videoId) return null;
+      if (!videoId) continue;
+      const musicVideoType = card?.onTap?.watchEndpoint?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType || '';
+      if (musicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || musicVideoType === 'MUSIC_VIDEO_TYPE_UGC') continue;
       const title = getRunsText(card?.title?.runs?.slice(0, 1));
-      if (!title) return null;
+      if (!title) continue;
       const groups = splitSubtitleRuns(card?.subtitle?.runs);
       const artistGroup = groups[1] || [];
       const artist = getRunsText(artistGroup);
