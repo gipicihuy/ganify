@@ -132,6 +132,75 @@ async function searchLrclib(q) {
   return Array.isArray(j) ? j : [];
 }
 
+// --- Fallback: KuGou (dipakai kalau LRCLib nggak nemu apa-apa) ---
+// Referensi alur: cari lagu -> cari lirik by hash (paling akurat) atau by
+// keyword -> download isi lirik (base64 -> LRC). Sama seperti yang dipakai
+// RythimMusic (module kugou/), diporting ke fetch biasa.
+function kugouKeyword(title, artist) {
+  const t = String(title || '').replace(/[（(].*?[)）]/g, '').replace(/[「『].*?[」』]/g, '').trim();
+  const a = String(artist || '').replace(/,\s*/g, '、').replace(/\s*&\s*/g, '、').trim();
+  return `${t}${a ? ' - ' + a : ''}`;
+}
+
+async function kugouDownload(id, accesskey) {
+  const r = await fetch(`https://lyrics.kugou.com/download?fmt=lrc&charset=utf8&client=pc&ver=1&id=${id}&accesskey=${encodeURIComponent(accesskey)}`, { headers: { 'User-Agent': UA } });
+  if (!r.ok) return null;
+  const j = await r.json();
+  if (!j?.content) return null;
+  try {
+    return Buffer.from(j.content, 'base64').toString('utf-8');
+  } catch {
+    return null;
+  }
+}
+
+async function searchKugouByHash(hash) {
+  const r = await fetch(`https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=${encodeURIComponent(hash)}`, { headers: { 'User-Agent': UA } });
+  if (!r.ok) return [];
+  const j = await r.json();
+  return Array.isArray(j?.candidates) ? j.candidates : [];
+}
+
+async function searchKugouByKeyword(keyword, duration) {
+  let url = `https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=${encodeURIComponent(keyword)}`;
+  if (duration && duration !== -1) url += `&duration=${duration * 1000}`;
+  const r = await fetch(url, { headers: { 'User-Agent': UA } });
+  if (!r.ok) return [];
+  const j = await r.json();
+  return Array.isArray(j?.candidates) ? j.candidates : [];
+}
+
+async function kugouLyrics(title, artist, duration) {
+  try {
+    const keyword = kugouKeyword(title, artist);
+    if (!keyword) return null;
+
+    // Coba cocokkan by hash lagu dulu (lebih presisi durasinya)
+    const songRes = await fetch(`https://mobileservice.kugou.com/api/v3/search/song?version=9108&plat=0&pagesize=8&showtype=0&keyword=${encodeURIComponent(keyword)}`, { headers: { 'User-Agent': UA } });
+    if (songRes.ok) {
+      const songJson = await songRes.json();
+      const songs = songJson?.data?.info || [];
+      for (const song of songs) {
+        if (duration && duration !== -1 && Math.abs((song.duration || 0) - duration) > DURATION_TOLERANCE) continue;
+        const candidates = await searchKugouByHash(song.hash);
+        if (candidates[0]) {
+          const lrc = await kugouDownload(candidates[0].id, candidates[0].accesskey);
+          if (lrc) return lrc;
+        }
+      }
+    }
+
+    // Fallback terakhir: cari langsung by keyword
+    const kwCandidates = await searchKugouByKeyword(keyword, duration || -1);
+    if (kwCandidates[0]) {
+      return await kugouDownload(kwCandidates[0].id, kwCandidates[0].accesskey);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function dedupeCandidates(lists) {
   const seen = new Set();
   const candidates = [];
@@ -178,6 +247,14 @@ export async function GET({ url, request, platform }) {
           : { type: 'plain', lines: parsePlainLyrics(best.item.plainLyrics) };
       }
     }
+
+    // LRCLib nggak ketemu apa-apa -> coba KuGou sebagai fallback kedua.
+    // Berguna terutama buat lagu Indonesia/Asia yang jarang ada di LRCLib.
+    if (lyricsData.type === 'none') {
+      const lrc = await kugouLyrics(searchTitle, cleanArtist, duration);
+      if (lrc) lyricsData = { type: 'synced', lines: parseSyncedLyrics(lrc) };
+    }
+
     runBackground(platform, notifyEvent(platform, 'lyrics', {
       ip,
       endpoint: 'GET /api/lyrics',

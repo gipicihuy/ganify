@@ -230,3 +230,35 @@ export async function _getLyrics(title, artist, duration) {
   const j = await r.json();
   return j.status ? j.result.lyrics : null;
 }
+
+// Ambil pengaturan fitur AI (provider + api key) yang disimpan di browser
+// user sendiri. Key TIDAK pernah kita simpan di server (lihat
+// /api/song/summary). Kalau belum diisi, balikin null.
+export function _getAiSettings() {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('ganify_ai_settings');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function _setAiSettings(settings) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem('ganify_ai_settings', JSON.stringify(settings));
+}
+
+export async function _getAiSummary(title, artist) {
+  const settings = _getAiSettings();
+  if (!settings?.provider || !settings?.apiKey) {
+    return { status: false, message: 'no_settings' };
+  }
+  const r = await fetch('/api/song/summary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, artist, ...settings })
+  });
+  const j = await r.json();
+  return j.status ? { status: true, summary: j.result.summary } : { status: false, message: j.message };
+}
