@@ -251,6 +251,11 @@
   }
 
   $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_quickResults.length > 0));
+  // Dipakai buat nge-gate tab yang lagi kelihatan: kalau dropdown suggestion
+  // kebuka (pill Album/Artis lagi disembunyiin), paksa balik nampilin
+  // section Lagu, biar nggak nyangkut nampilin grid Album/Artis padahal
+  // pill buat pindah balik ke situ lagi disembunyiin.
+  $: _effectiveTab = _hasSug ? 'songs' : _tab;
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:24px 16px 0">
@@ -390,19 +395,19 @@
 
   {:else}
     <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto" class="hide-scrollbar">
-      <button on:click={() => _setTab('songs')} class="chip-tab {_tab==='songs' ? 'active' : ''}"
+      <button on:click={() => _setTab('songs')} class="chip-tab {_effectiveTab==='songs' ? 'active' : ''}"
         style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
           cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
         Lagu ({_ds.length})
       </button>
-      {#if _albums.length > 0}
+      {#if _albums.length > 0 && !_hasSug}
         <button on:click={() => _setTab('albums')} class="chip-tab {_tab==='albums' ? 'active' : ''}"
           style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
             cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
           Album ({_albums.length})
         </button>
       {/if}
-      {#if _artists.length > 0}
+      {#if _artists.length > 0 && !_hasSug}
         <button on:click={() => _setTab('artists')} class="chip-tab {_tab==='artists' ? 'active' : ''}"
           style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
             cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
@@ -411,7 +416,7 @@
       {/if}
     </div>
 
-    {#if _tab === 'songs'}
+    {#if _effectiveTab === 'songs'}
       {#if _ds.length === 0}
         <div style="display:flex;align-items:center;justify-content:center;padding:40px 0">
           <p style="color:rgba(245,245,245,.4);font-size:.8rem">Tidak ada lagu ditemukan</p>
@@ -464,7 +469,7 @@
         {/each}
       </div>
       {/if}
-    {:else if _tab === 'artists'}
+    {:else if _effectiveTab === 'artists'}
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding-bottom:16px">
         {#each _artists as a, i}
           <button on:click={() => goto(`/artist/${a.id}`)} class="animate-card-up"
@@ -474,7 +479,7 @@
           </button>
         {/each}
       </div>
-    {:else if _tab === 'albums'}
+    {:else if _effectiveTab === 'albums'}
       <div class="album-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-bottom:16px">
         {#each _albums as al, i}
           <button on:click={() => goto(`/album/${al.id}`)} class="glass-card animate-card-up"
