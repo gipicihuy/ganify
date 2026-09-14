@@ -242,7 +242,8 @@
   // di dropdown suggestion, biar user bisa langsung tap-play tanpa perlu
   // submit/pindah ke tab "Lagu" dulu. Di-gate pake !_ld biar nggak nampilin
   // hasil query lama yang sempet nyangkut sebelum debounce settle.
-  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, 1) : [];
+  const _QUICK_RESULT_MAX = 3;
+  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, _QUICK_RESULT_MAX) : [];
 
   function _selectQuick(item, idx) {
     _showSug = false;
