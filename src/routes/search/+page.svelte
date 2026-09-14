@@ -242,7 +242,7 @@
   // di dropdown suggestion, biar user bisa langsung tap-play tanpa perlu
   // submit/pindah ke tab "Lagu" dulu. Di-gate pake !_ld biar nggak nampilin
   // hasil query lama yang sempet nyangkut sebelum debounce settle.
-  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, 3) : [];
+  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, 1) : [];
 
   function _selectQuick(item, idx) {
     _showSug = false;
@@ -394,20 +394,21 @@
     </div>
 
   {:else}
+    {#if !_hasSug}
     <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto" class="hide-scrollbar">
       <button on:click={() => _setTab('songs')} class="chip-tab {_effectiveTab==='songs' ? 'active' : ''}"
         style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
           cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
         Lagu ({_ds.length})
       </button>
-      {#if _albums.length > 0 && !_hasSug}
+      {#if _albums.length > 0}
         <button on:click={() => _setTab('albums')} class="chip-tab {_tab==='albums' ? 'active' : ''}"
           style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
             cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
           Album ({_albums.length})
         </button>
       {/if}
-      {#if _artists.length > 0 && !_hasSug}
+      {#if _artists.length > 0}
         <button on:click={() => _setTab('artists')} class="chip-tab {_tab==='artists' ? 'active' : ''}"
           style="padding:8px 16px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
             cursor:pointer;font-size:.75rem;font-weight:700;color:rgba(245,245,245,.6);white-space:nowrap;flex-shrink:0">
@@ -415,7 +416,7 @@
         </button>
       {/if}
     </div>
-
+    {/if}
     {#if _effectiveTab === 'songs'}
       {#if _ds.length === 0}
         <div style="display:flex;align-items:center;justify-content:center;padding:40px 0">
