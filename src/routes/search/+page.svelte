@@ -268,6 +268,7 @@
 
   function _selectQuick(item, idx) {
     _showSug = false;
+    _submitted = true;
     _saveHistory(_qv.trim());
     _pl(item, idx);
   }
