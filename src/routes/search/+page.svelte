@@ -6,6 +6,12 @@
   import { getPlaylists } from '$lib/playlist.js';
 
   let _ld = false, _t = null, _init = false;
+  // _submitted: true kalau user udah "commit" ke pencarian (Enter / pilih
+  // saran / dibuka lewat URL ?q=...). Selama false (masih ngetik doang),
+  // section hasil lengkap di bawah nggak dirender — biar nggak dobel sama
+  // dropdown quick-result, sesuai perilaku Rythim (dropdown dulu, grid
+  // lengkap nyusul setelah submit).
+  let _submitted = false;
   let _loadingId = null;
   let _qv = '';
   let _ds = [];
@@ -69,6 +75,7 @@
       _qv = q;
       _ld = true;
       _init = true;
+      _submitted = true;
       _searchInit.set(true);
       _runSearch(q);
     }
@@ -133,6 +140,9 @@
     _searchQuery.set(val);
     _qv = val;
     _showSug = true;
+    // Ngetik lagi = belum submit. Sembunyiin grid hasil lengkap sampai
+    // user beneran commit (Enter / pilih saran).
+    _submitted = false;
 
     if (!val.trim()) {
       _suggestions = { history: _history, api: [] };
@@ -172,6 +182,7 @@
     _searchQuery.set(q);
     _qv = q;
     _showSug = false;
+    _submitted = true;
     _saveHistory(q);
     _ld = true;
     _init = true;
@@ -185,6 +196,7 @@
   function _onSubmit() {
     if (!_qv.trim()) return;
     _showSug = false;
+    _submitted = true;
     _saveHistory(_qv.trim());
   }
 
@@ -196,6 +208,7 @@
     _searchInit.set(false);
     _ds = []; _albums = []; _artists = [];
     _init = false;
+    _submitted = false;
     _showSug = false;
     _suggestions = { history: _history, api: [] };
     if (_t) clearTimeout(_t);
@@ -243,7 +256,21 @@
   // submit/pindah ke tab "Lagu" dulu. Di-gate pake !_ld biar nggak nampilin
   // hasil query lama yang sempet nyangkut sebelum debounce settle.
   const _QUICK_RESULT_MAX = 3;
-  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, _QUICK_RESULT_MAX) : [];
+  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0)
+    ? (() => {
+        const needle = _qv.trim().toLowerCase();
+        // Cuma tampilin yang judul/artisnya beneran mengandung ketikan
+        // user — bukan sekadar N teratas dari hasil API apa adanya, biar
+        // nggak muncul lagu random yang nggak nyambung ke query (mis.
+        // ngetik "teh" tapi yang nongol malah lagu-lagu lain dari artis
+        // yang sama).
+        const matched = _ds.filter(it =>
+          (it.title || '').toLowerCase().includes(needle) ||
+          (it.author || '').toLowerCase().includes(needle)
+        );
+        return matched.slice(0, _QUICK_RESULT_MAX);
+      })()
+    : [];
 
   function _selectQuick(item, idx) {
     _showSug = false;
@@ -368,7 +395,21 @@
     </div>
   </div>
 
-  {#if _ld}
+  {#if !_submitted}
+    <!-- Belum submit (masih ngetik / belum tekan Enter): jangan render
+         grid/skeleton hasil di sini sama sekali, biar nggak dobel sama
+         dropdown quick-result di atas. Cuma tampilin placeholder kalau
+         input-nya masih kosong total. -->
+    {#if !_qv.trim()}
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
+        <div style="width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
+          <svg width="26" height="26" fill="rgba(255,255,255,.45)" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </div>
+        <p style="color:rgba(245,245,245,.38);font-size:.84rem">Ketik untuk mencari lagu favoritmu</p>
+      </div>
+    {/if}
+
+  {:else if _ld}
     <div style="display:flex;flex-direction:column;gap:10px">
       {#each Array(5) as _}
         <div style="border-radius:16px;padding:12px;display:flex;gap:12px;align-items:center">
@@ -379,14 +420,6 @@
           </div>
         </div>
       {/each}
-    </div>
-
-  {:else if !_init}
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px">
-      <div style="width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center">
-        <svg width="26" height="26" fill="rgba(255,255,255,.45)" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      </div>
-      <p style="color:rgba(245,245,245,.38);font-size:.84rem">Ketik untuk mencari lagu favoritmu</p>
     </div>
 
   {:else if _ds.length === 0 && _albums.length === 0 && _artists.length === 0}
