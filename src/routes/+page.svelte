@@ -582,7 +582,7 @@
   {#if _ld}
     <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
       {#each Array(4) as _}
-        <div class="skeleton" style="width:130px;height:130px;border-radius:14px;flex-shrink:0"></div>
+        <div class="skeleton" style="width:130px;height:130px;border-radius:0;flex-shrink:0"></div>
       {/each}
     </div>
     <div class="skeleton" style="width:100%;aspect-ratio:16/10;border-radius:20px;margin-bottom:22px"></div>
@@ -598,7 +598,7 @@
     </div>
     <div class="hscroll hide-scrollbar" style="margin-bottom:22px">
       {#each Array(4) as _}
-        <div class="skeleton" style="width:128px;height:128px;border-radius:12px;flex-shrink:0"></div>
+        <div class="skeleton" style="width:128px;height:128px;border-radius:0;flex-shrink:0"></div>
       {/each}
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -635,9 +635,9 @@
               on:click={() => _plTrending(item, i)}
               on:keydown={e => e.key === 'Enter' && _plTrending(item, i)}>
               <div style="position:relative">
-                <img src={item.thumbnail} alt={item.title} style="width:130px;height:130px;border-radius:14px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+                <img src={item.thumbnail} alt={item.title} style="width:130px;height:130px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
                 {#if _loadingId === item.videoId}
-                  <div style="position:absolute;inset:0;border-radius:14px;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
+                  <div style="position:absolute;inset:0;border-radius:0;background:rgba(10,10,10,.55);display:flex;align-items:center;justify-content:center">
                     <div class="mini-spin"></div>
                   </div>
                 {:else if $_q8z?.videoId === item.videoId}
@@ -766,7 +766,7 @@
         <div class="hscroll hide-scrollbar">
           <button on:click={() => goto('/library?tab=playlist&cta=new')}
             style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0">
-            <div style="width:128px;height:128px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;
+            <div style="width:128px;height:128px;border-radius:0;margin-bottom:8px;display:flex;align-items:center;justify-content:center;
               background:rgba(255,255,255,.06);border:1.5px dashed rgba(255,255,255,.25)">
               <svg width="26" height="26" fill="none" stroke="#F5F5F5" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">
                 <path d="M12 5v14M5 12h14"/>
@@ -779,7 +779,7 @@
             <button on:click={() => _openCollection(c)}
               style="background:none;border:none;cursor:pointer;text-align:left;width:128px;flex-shrink:0;padding:0;position:relative">
               <div style="position:relative">
-                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:12px;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
+                <img src={c.cover} alt={c.title} style="width:128px;height:128px;border-radius:0;object-fit:cover;display:block;margin-bottom:8px" loading="lazy" />
                 <span style="position:absolute;top:6px;left:6px;font-size:.55rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
                   color:#F5F5F5;background:rgba(10,10,10,.6);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:2px 8px">{c._kind}</span>
               </div>
