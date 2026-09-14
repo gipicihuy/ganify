@@ -263,14 +263,7 @@
   // hasil query lama yang sempet nyangkut sebelum debounce settle.
   const _QUICK_RESULT_MAX = 1;
   $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0)
-    ? (() => {
-        const needle = _qv.trim().toLowerCase();
-        const matched = _ds.filter(it =>
-          (it.title || '').toLowerCase().includes(needle) ||
-          (it.author || '').toLowerCase().includes(needle)
-        );
-        return matched.slice(0, _QUICK_RESULT_MAX);
-      })()
+    ? _ds.slice(0, _QUICK_RESULT_MAX)
     : [];
 
   function _selectQuick(item, idx) {

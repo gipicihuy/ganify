@@ -304,6 +304,61 @@ function extractSongRows(data) {
   return out;
 }
 
+function splitSubtitleRuns(runs) {
+  const groups = [];
+  let current = [];
+  for (const run of runs || []) {
+    const t = (run.text || '').trim();
+    if (t === '•' || t === '·') {
+      groups.push(current);
+      current = [];
+    } else {
+      current.push(run);
+    }
+  }
+  groups.push(current);
+  return groups;
+}
+
+function extractTopResult(data) {
+  if (!data) return null;
+  const tabs = data?.contents?.tabbedSearchResultsRenderer?.tabs || [];
+  for (const tab of tabs) {
+    const sections = tab?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+    for (const section of sections) {
+      const card = section?.musicCardShelfRenderer;
+      if (!card) continue;
+      const videoId = card?.onTap?.watchEndpoint?.videoId || '';
+      if (!videoId) return null;
+      const title = getRunsText(card?.title?.runs?.slice(0, 1));
+      if (!title) return null;
+      const groups = splitSubtitleRuns(card?.subtitle?.runs);
+      const artistGroup = groups[1] || [];
+      const artist = getRunsText(artistGroup);
+      const artistId = artistGroup[0]?.navigationEndpoint?.browseEndpoint?.browseId || '';
+      const albumGroup = groups.find(g => g.some(r => (r?.navigationEndpoint?.browseEndpoint?.browseId || '').startsWith('MPRE'))) || [];
+      const album = getRunsText(albumGroup);
+      const albumId = albumGroup[0]?.navigationEndpoint?.browseEndpoint?.browseId || '';
+      const lastGroup = groups[groups.length - 1] || [];
+      const duration = durationToColon(getRunsText(lastGroup));
+      const thumbs = card?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+      const thumbnail = toHDThumbnail(thumbs.length ? thumbs[thumbs.length - 1].url : '', videoId);
+      return {
+        title: cleanTitle(title),
+        videoId,
+        thumbnail,
+        duration,
+        author: artist,
+        artist,
+        artistId,
+        album,
+        albumId
+      };
+    }
+  }
+  return null;
+}
+
 function dedupeBy(list, keyFn) {
   const seen = new Set();
   const out = [];
@@ -340,13 +395,22 @@ async function performSearch(rawQuery) {
   const cached = _cacheGet(query);
   if (cached) return cached;
 
-  const [songsData, playlistsData, artistsData] = await Promise.all([
+  const [songsData, playlistsData, artistsData, allData] = await Promise.all([
     fetchYoutube(query, 'songs').catch(() => null),
     fetchYoutube(query, 'playlists').catch(() => null),
-    fetchYoutube(query, 'artists').catch(() => null)
+    fetchYoutube(query, 'artists').catch(() => null),
+    fetchYoutube(query, 'all').catch(() => null)
   ]);
 
   const songs = dedupeBy(extractSongRows(songsData), s => s.videoId);
+
+  const topResult = extractTopResult(allData);
+  if (topResult) {
+    const existingIdx = songs.findIndex(s => s.videoId === topResult.videoId);
+    if (existingIdx !== -1) songs.splice(existingIdx, 1);
+    songs.unshift(topResult);
+  }
+
   const artists = buildArtistsFromSongs(songs, extractRows(artistsData));
   const { albums, playlists } = rowsToAlbumsAndPlaylists(extractRows(playlistsData));
 
@@ -356,7 +420,8 @@ async function performSearch(rawQuery) {
     songs,
     albums: dedupeBy(albums, a => a.id),
     playlists: dedupeBy(playlists, p => p.id),
-    artists
+    artists,
+    topResult
   };
 
   _cacheSet(query, result);
