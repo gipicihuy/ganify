@@ -4,7 +4,7 @@
   import { goto, afterNavigate } from '$app/navigation';
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics, _likedSongs } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
-  import { _getStreamUrl, _getLyrics, _getSongInfo, _fetchAudioBytes, _fetchCoverBytes, _getAiSummary, _getAiSettings } from '$lib/api.js';
+  import { _getStreamUrl, _getLyrics, _getSongInfo, _fetchAudioBytes, _fetchCoverBytes } from '$lib/api.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong, getRecentlyPlayed } from '$lib/playlist.js';
   import BindPrompt from '$lib/BindPrompt.svelte';
   import { onDestroy, onMount, tick } from 'svelte';
@@ -64,9 +64,6 @@
   let _lyricsLoading = false;
   let _lyricsTrackId = null;
   let _lyricsWrapEl = null;
-  let _aiSummary = null;
-  let _aiSummaryLoading = false;
-  let _aiSummaryError = null;
 
   // "Lagu Serupa" pakai data queue/up-next dari /api/song (endpoint `next`
   // YT Music yang sama persis dipakai buat radio/mix otomatis) — bukan
@@ -119,23 +116,7 @@
     if (next && $_q8z && _lyricsTrackId !== $_q8z.videoId) {
       _lyricsTrackId = $_q8z.videoId;
       _loadLyrics($_q8z);
-      _aiSummary = null;
-      _aiSummaryError = null;
     }
-  }
-
-  async function _loadAiSummary() {
-    if (!$_q8z || _aiSummaryLoading) return;
-    if (!_getAiSettings()?.apiKey) {
-      _aiSummaryError = 'set_key';
-      return;
-    }
-    _aiSummaryLoading = true;
-    _aiSummaryError = null;
-    const res = await _getAiSummary($_q8z.title, $_q8z.author || $_q8z.artist || '');
-    _aiSummaryLoading = false;
-    if (res.status) _aiSummary = res.summary;
-    else _aiSummaryError = res.message || 'error';
   }
 
   $: _activeLyricIdx = (() => {
@@ -994,33 +975,6 @@
             </p>
           {/each}
         </div>
-      {/if}
-    </div>
-
-    <div style="width:100%;margin-top:14px">
-      {#if _aiSummary}
-        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px">
-          <p style="font-size:.62rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:6px">✨ RINGKASAN AI</p>
-          <p style="font-size:.8rem;line-height:1.5;color:rgba(245,245,245,.85);margin:0">{_aiSummary}</p>
-        </div>
-      {:else}
-        <button on:click={_loadAiSummary} disabled={_aiSummaryLoading}
-          style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:14px;
-            background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(245,245,245,.7);
-            font-size:.78rem;font-weight:600;cursor:pointer">
-          {#if _aiSummaryLoading}
-            <span class="np-spin" style="width:14px;height:14px"></span> Meringkas...
-          {:else}
-            ✨ Ringkasan AI
-          {/if}
-        </button>
-        {#if _aiSummaryError === 'set_key'}
-          <p style="font-size:.7rem;color:rgba(255,255,255,.4);text-align:center;margin-top:6px">
-            Isi API key di <a href="/settings" style="color:#fff;text-decoration:underline">Pengaturan &gt; Fitur AI</a> dulu.
-          </p>
-        {:else if _aiSummaryError}
-          <p style="font-size:.7rem;color:rgba(255,120,120,.7);text-align:center;margin-top:6px">Gagal memuat ringkasan.</p>
-        {/if}
       {/if}
     </div>
     {/if}

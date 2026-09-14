@@ -1,7 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _getAiSettings, _setAiSettings } from '$lib/api.js';
 
   let _loading = true;
   let _me = null;
@@ -9,45 +8,7 @@
   let _processing = false;
   let _toast = '';
   let _toastTimer = null;
-  let _sheet = null; // 'account' | 'clearData' | 'appearance' | 'theme' | 'ai' | null
-
-  const AI_PROVIDERS = [
-    { id: 'openai', label: 'OpenAI' },
-    { id: 'claude', label: 'Claude (Anthropic)' },
-    { id: 'gemini', label: 'Gemini' },
-    { id: 'mistral', label: 'Mistral' },
-    { id: 'perplexity', label: 'Perplexity' },
-    { id: 'xai', label: 'xAI (Grok)' },
-    { id: 'openrouter', label: 'OpenRouter' }
-  ];
-  function _aiProviderLabel(id) {
-    return AI_PROVIDERS.find((p) => p.id === id)?.label || id;
-  }
-
-  let _aiSettingsSaved = null;
-  let _aiForm = { provider: 'openai', apiKey: '', model: '' };
-
-  onMount(() => {
-    _aiSettingsSaved = _getAiSettings();
-  });
-
-  function _saveAiSettings() {
-    const trimmedKey = (_aiForm.apiKey || '').trim();
-    if (!trimmedKey) { _showToast('API key belum diisi'); return; }
-    const toSave = { provider: _aiForm.provider, apiKey: trimmedKey, model: (_aiForm.model || '').trim() || undefined };
-    _setAiSettings(toSave);
-    _aiSettingsSaved = toSave;
-    _sheet = null;
-    _showToast('Pengaturan AI disimpan');
-  }
-
-  function _clearAiSettings() {
-    _setAiSettings({});
-    _aiSettingsSaved = null;
-    _aiForm = { provider: 'openai', apiKey: '', model: '' };
-    _sheet = null;
-    _showToast('Pengaturan AI dihapus');
-  }
+  let _sheet = null; // 'account' | 'clearData' | 'appearance' | 'theme' | null
 
   // Kunci scroll halaman di belakang selagi modal/sheet manapun terbuka,
   // supaya yang ke-scroll cuma isi modal-nya, bukan konten Settings di
@@ -281,20 +242,6 @@
       </button>
     </div>
 
-    <p class="settings-section-title">Fitur AI</p>
-    <div class="settings-group">
-      <button class="settings-item" on:click={() => { _aiForm = { ..._aiSettingsSaved }; _sheet = 'ai'; }}>
-        <span class="settings-item-icon">
-          <svg width="19" height="19" fill="#F5F5F5" fill-opacity=".62" viewBox="0 0 24 24"><path d="M12 2l1.9 5.6L19.5 9l-5.6 1.9L12 16.5l-1.9-5.6L4.5 9l5.6-1.5L12 2zM5 15l.8 2.4L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.6L5 15zm14-2l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/></svg>
-        </span>
-        <span class="settings-item-text">
-          <span class="settings-item-title">Ringkasan Lagu AI</span>
-        </span>
-        <span class="settings-item-value">{_aiSettingsSaved?.provider ? _aiProviderLabel(_aiSettingsSaved.provider) : 'Belum diatur'}</span>
-        <svg class="settings-chevron" width="18" height="18" fill="none" stroke="#F5F5F5" stroke-opacity=".3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-    </div>
-
     <p class="settings-section-title">About</p>
     <div class="settings-group">
       <button class="settings-item" on:click={() => goto('/settings/about')}>
@@ -403,47 +350,6 @@
           style="width:100%;padding:11px;border-radius:10px;background:rgba(255,255,255,.12);
             border:1px solid rgba(255,255,255,.25);cursor:pointer;font-family:'Quicksand',sans-serif;
             font-size:.8rem;font-weight:700;color:#FFFFFF">Oke, Mengerti</button>
-
-      {:else if _sheet === 'ai'}
-        <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 4px">Ringkasan Lagu AI</p>
-        <p style="font-size:.72rem;color:rgba(245,245,245,.4);margin:0 0 16px;line-height:1.5">API key disimpan cuma di browser kamu sendiri (bukan di server kami) dan dipakai langsung buat manggil provider AI pilihan kamu.</p>
-
-        <label style="display:block;font-size:.7rem;font-weight:700;color:rgba(245,245,245,.5);margin-bottom:6px">Provider</label>
-        <select bind:value={_aiForm.provider}
-          style="width:100%;padding:11px 12px;border-radius:10px;background:#1F1F1F;border:1px solid #303030;
-            color:#F5F5F5;font-family:'Quicksand',sans-serif;font-size:.82rem;margin-bottom:14px">
-          {#each AI_PROVIDERS as p}
-            <option value={p.id}>{p.label}</option>
-          {/each}
-        </select>
-
-        <label style="display:block;font-size:.7rem;font-weight:700;color:rgba(245,245,245,.5);margin-bottom:6px">API Key</label>
-        <input type="password" bind:value={_aiForm.apiKey} placeholder="sk-..."
-          style="width:100%;padding:11px 12px;border-radius:10px;background:#1F1F1F;border:1px solid #303030;
-            color:#F5F5F5;font-family:'Quicksand',sans-serif;font-size:.82rem;margin-bottom:14px;box-sizing:border-box" />
-
-        <label style="display:block;font-size:.7rem;font-weight:700;color:rgba(245,245,245,.5);margin-bottom:6px">Model (opsional)</label>
-        <input type="text" bind:value={_aiForm.model} placeholder="Default otomatis kalau dikosongin"
-          style="width:100%;padding:11px 12px;border-radius:10px;background:#1F1F1F;border:1px solid #303030;
-            color:#F5F5F5;font-family:'Quicksand',sans-serif;font-size:.82rem;margin-bottom:18px;box-sizing:border-box" />
-
-        <div style="display:flex;gap:10px">
-          {#if _aiSettingsSaved?.apiKey}
-            <button on:click={_clearAiSettings}
-              style="flex:1;padding:11px;border-radius:10px;background:rgba(255,60,60,.15);
-                border:1px solid rgba(255,60,60,.3);cursor:pointer;font-family:'Quicksand',sans-serif;
-                font-size:.8rem;font-weight:700;color:rgba(255,100,100,.9)">Hapus</button>
-          {:else}
-            <button on:click={() => _sheet = null}
-              style="flex:1;padding:11px;border-radius:10px;background:rgba(255,255,255,.07);
-                border:1px solid rgba(255,255,255,.15);cursor:pointer;font-family:'Quicksand',sans-serif;
-                font-size:.8rem;font-weight:700;color:rgba(245,245,245,.6)">Batal</button>
-          {/if}
-          <button on:click={_saveAiSettings}
-            style="flex:1;padding:11px;border-radius:10px;background:rgba(255,255,255,.12);
-              border:1px solid rgba(255,255,255,.25);cursor:pointer;font-family:'Quicksand',sans-serif;
-              font-size:.8rem;font-weight:700;color:#FFFFFF">Simpan</button>
-        </div>
 
       {:else if _sheet === 'theme'}
         <p style="font-size:.92rem;font-weight:700;color:#F5F5F5;margin:0 0 16px">Theme</p>
