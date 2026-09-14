@@ -5,6 +5,7 @@
   import { _q8z, _p1k, _x9a, _playing, _showNP, _showMenu, _showAddPl, _playlists, _recentlyPlayed, _shuffle, _repeat, _origQueue, _showLyrics, _likedSongs } from '$lib/store.js';
   import { _saveQueueSnapshot } from '$lib/queueSnapshot.js';
   import { _getStreamUrl, _getLyrics, _getSongInfo, _fetchAudioBytes, _fetchCoverBytes } from '$lib/api.js';
+  import { extractThemeTint } from '$lib/colorExtract.js';
   import { addRecentlyPlayed, getPlaylists, addTrackToPlaylist, createPlaylist, getLikedSongs, toggleLikeSong, getRecentlyPlayed } from '$lib/playlist.js';
   import BindPrompt from '$lib/BindPrompt.svelte';
   import { onDestroy, onMount, tick } from 'svelte';
@@ -64,6 +65,19 @@
   let _lyricsLoading = false;
   let _lyricsTrackId = null;
   let _lyricsWrapEl = null;
+  let _themeTint = null;
+  let _themeTintTrackId = null;
+
+  async function _loadThemeTint(track) {
+    if (!track?.videoId || track.videoId === _themeTintTrackId) return;
+    _themeTintTrackId = track.videoId;
+    const tint = await extractThemeTint(track.thumbnail, track.videoId);
+    // Pastikan lagu belum keburu diganti selagi nunggu ekstraksi warna
+    if ($_q8z?.videoId === track.videoId) _themeTint = tint;
+  }
+
+  $: if ($_q8z) _loadThemeTint($_q8z);
+  $: if (!$_q8z) { _themeTint = null; _themeTintTrackId = null; }
 
   // "Lagu Serupa" pakai data queue/up-next dari /api/song (endpoint `next`
   // YT Music yang sama persis dipakai buat radio/mix otomatis) — bukan
@@ -796,7 +810,7 @@
 <div
   bind:this={_playerEl}
   class="player-bar"
-  style="position:fixed;bottom:58px;left:0;right:0;z-index:40;padding:12px 16px 10px;transition:transform .2s ease,opacity .2s ease;touch-action:none"
+  style="position:fixed;bottom:58px;left:0;right:0;z-index:40;padding:12px 16px 10px;transition:transform .2s ease,opacity .2s ease,background 1s ease;touch-action:none;background:{_themeTint?.bar || ''}"
   on:touchstart|passive={_onPlayerTouchStart}
   on:touchmove={_onPlayerTouchMove}
   on:touchend={_onPlayerTouchEnd}
@@ -900,7 +914,8 @@
 
 {#if $_showNP && $_q8z}
 <div class="overlay-enter" style="position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
-  background:linear-gradient(180deg,#1c1c1c 0%,#141414 100%);overflow:hidden;overscroll-behavior:contain">
+  background:linear-gradient(180deg,{_themeTint?.top || '#1c1c1c'} 0%,{_themeTint?.bottom || '#141414'} 100%);
+  transition:background 1s ease;overflow:hidden;overscroll-behavior:contain">
 
   <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 0;gap:8px">
     <button on:click={_handleNPBack} aria-label={$_showLyrics ? 'Kembali ke lagu' : 'Tutup'}
