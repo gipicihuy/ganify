@@ -255,15 +255,10 @@
   // di dropdown suggestion, biar user bisa langsung tap-play tanpa perlu
   // submit/pindah ke tab "Lagu" dulu. Di-gate pake !_ld biar nggak nampilin
   // hasil query lama yang sempet nyangkut sebelum debounce settle.
-  const _QUICK_RESULT_MAX = 3;
+  const _QUICK_RESULT_MAX = 1;
   $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0)
     ? (() => {
         const needle = _qv.trim().toLowerCase();
-        // Cuma tampilin yang judul/artisnya beneran mengandung ketikan
-        // user — bukan sekadar N teratas dari hasil API apa adanya, biar
-        // nggak muncul lagu random yang nggak nyambung ke query (mis.
-        // ngetik "teh" tapi yang nongol malah lagu-lagu lain dari artis
-        // yang sama).
         const matched = _ds.filter(it =>
           (it.title || '').toLowerCase().includes(needle) ||
           (it.author || '').toLowerCase().includes(needle)
