@@ -249,11 +249,11 @@
     </div>
 
     <div style="position:relative">
-      <div style="position:absolute;left:14px;top:{_hasSug ? '17px' : '50%'};transform:{_hasSug ? 'none' : 'translateY(-50%)'};color:rgba(255,255,255,.5);pointer-events:none;z-index:2;transition:top .15s,transform .15s">
+      <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);pointer-events:none;z-index:2">
         <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
       </div>
 
-      <div style="position:relative;z-index:10">
+      <div style="position:relative">
         <input
           bind:this={_inputEl}
           value={_qv}
@@ -263,11 +263,11 @@
           on:keydown={e => { if (e.key === 'Enter') _onSubmit(); if (e.key === 'Escape') _showSug = false; }}
           type="text"
           placeholder="Cari lagu, artis, album..."
-          style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,{_hasSug ? '.45' : '.16'});color:#F5F5F5;
+          style="width:100%;background:var(--bg-card,#1c1c1c);border:1px solid rgba(255,255,255,{_hasSug ? '.16' : '.1'});color:#F5F5F5;
             font-family:'Quicksand',sans-serif;font-size:.875rem;font-weight:500;
-            border-radius:{_hasSug ? '14px 14px 0 0' : '14px'};padding:13px 44px 13px 44px;outline:none;
-            transition:border-color .2s,box-shadow .2s,border-radius .15s;
-            box-shadow:{_hasSug ? '0 0 0 3px rgba(255,255,255,.07)' : 'none'}"
+            border-radius:14px;padding:13px 44px 13px 44px;outline:none;
+            transition:border-color .2s,box-shadow .2s;
+            box-shadow:{_hasSug ? '0 2px 10px rgba(0,0,0,.25)' : 'none'}"
         />
         {#if _qv}
           <button on:click={_clear}
@@ -279,10 +279,10 @@
       </div>
 
       {#if _hasSug}
-        <div style="position:absolute;left:0;right:0;top:100%;z-index:9;
-          background:#1c1c1c;border:1.5px solid rgba(255,255,255,.45);border-top:none;
-          border-radius:0 0 14px 14px;overflow:hidden;
-          box-shadow:0 8px 24px rgba(0,0,0,.5)">
+        <div style="margin-top:8px;
+          background:var(--bg-raised,#1a1a1a);border:1px solid rgba(255,255,255,.08);
+          border-radius:14px;overflow:hidden;
+          box-shadow:0 6px 18px rgba(0,0,0,.3)">
 
           {#if _suggestions.history?.length > 0}
             {#each _suggestions.history as h}
@@ -290,7 +290,7 @@
                 <button on:mousedown|preventDefault={() => _selectSuggestion(h)}
                   style="flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;
                     background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
-                  onmouseenter="this.style.background='rgba(255,255,255,.06)'" onmouseleave="this.style.background='none'">
+                  onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
                   <svg width="14" height="14" fill="rgba(255,255,255,.35)" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M13 3a9 9 0 1 0 .001 18.001A9 9 0 0 0 13 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm.5-11H12v6l5.25 3.15.75-1.23-4.5-2.67V8z"/></svg>
                   <span style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{@html _highlight(h, _qv)}</span>
                 </button>
@@ -305,13 +305,13 @@
 
           {#if _suggestions.api?.length > 0}
             {#if _suggestions.history?.length > 0}
-              <div style="height:1px;background:rgba(255,255,255,.07);margin:2px 0"></div>
+              <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
             {/if}
             {#each _suggestions.api as s}
               <button on:mousedown|preventDefault={() => _selectSuggestion(s)}
                 style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;
                   background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
-                onmouseenter="this.style.background='rgba(255,255,255,.06)'" onmouseleave="this.style.background='none'">
+                onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
                 <svg width="14" height="14" fill="rgba(255,255,255,.25)" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 <span style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{@html _highlight(s, _qv)}</span>
               </button>
