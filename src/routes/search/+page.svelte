@@ -290,7 +290,11 @@
     _selectSuggestion(item.title);
   }
 
-  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_suggestions.apiItems?.length > 0) || (_quickResults.length > 0));
+  $: _apiItemsFiltered = (_suggestions.apiItems || []).filter(
+    it => !(it.type === 'song' && _quickResults.some(q => q.videoId === it.videoId))
+  );
+
+  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_apiItemsFiltered.length > 0) || (_quickResults.length > 0));
   // Dipakai buat nge-gate tab yang lagi kelihatan: kalau dropdown suggestion
   // kebuka (pill Album/Artis lagi disembunyiin), paksa balik nampilin
   // section Lagu, biar nggak nyangkut nampilin grid Album/Artis padahal
@@ -342,7 +346,32 @@
           border-radius:14px;overflow:hidden;
           box-shadow:0 6px 18px rgba(0,0,0,.3)">
 
+          {#if _quickResults.length > 0}
+            {#each _quickResults as item, i}
+              <button on:mousedown|preventDefault={() => _selectQuick(item, i)}
+                style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 14px;
+                  background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
+                onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
+                <img src={item.thumbnail} alt={item.title}
+                  style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0" loading="lazy" />
+                <div style="min-width:0;flex:1">
+                  <p style="font-size:.82rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.title}
+                  </p>
+                  {#if item.author}
+                    <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      {item.author}
+                    </p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          {/if}
+
           {#if _suggestions.history?.length > 0}
+            {#if _quickResults.length > 0}
+              <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
+            {/if}
             {#each _suggestions.history as h}
               <div style="display:flex;align-items:center;gap:0">
                 <button on:mousedown|preventDefault={() => _selectSuggestion(h)}
@@ -362,7 +391,7 @@
           {/if}
 
           {#if _suggestions.api?.length > 0}
-            {#if _suggestions.history?.length > 0}
+            {#if _quickResults.length > 0 || _suggestions.history?.length > 0}
               <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
             {/if}
             {#each _suggestions.api as s}
@@ -376,11 +405,11 @@
             {/each}
           {/if}
 
-          {#if _suggestions.apiItems?.length > 0}
-            {#if _suggestions.history?.length > 0 || _suggestions.api?.length > 0}
+          {#if _apiItemsFiltered.length > 0}
+            {#if _quickResults.length > 0 || _suggestions.history?.length > 0 || _suggestions.api?.length > 0}
               <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
             {/if}
-            {#each _suggestions.apiItems as item}
+            {#each _apiItemsFiltered as item}
               <button on:mousedown|preventDefault={() => item.type === 'song' ? _selectSuggestionSong(item) : _selectSuggestionNav(item)}
                 style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 14px;
                   background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
@@ -394,31 +423,6 @@
                   <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                     {item.type === 'artist' ? 'Artis' : item.type === 'album' ? (item.artist || 'Album') : item.type === 'playlist' ? (item.artist || 'Playlist') : (item.artist || '')}
                   </p>
-                </div>
-              </button>
-            {/each}
-          {/if}
-
-          {#if _quickResults.length > 0}
-            {#if _suggestions.history?.length > 0 || _suggestions.api?.length > 0 || _suggestions.apiItems?.length > 0}
-              <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
-            {/if}
-            {#each _quickResults as item, i}
-              <button on:mousedown|preventDefault={() => _selectQuick(item, i)}
-                style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 14px;
-                  background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
-                onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
-                <img src={item.thumbnail} alt={item.title}
-                  style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0" loading="lazy" />
-                <div style="min-width:0;flex:1">
-                  <p style="font-size:.82rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    {item.title}
-                  </p>
-                  {#if item.author}
-                    <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                      {item.author}
-                    </p>
-                  {/if}
                 </div>
               </button>
             {/each}
