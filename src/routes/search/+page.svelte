@@ -126,13 +126,14 @@
   async function _fetchSuggestions(q) {
     try {
       const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
-      return await r.json();
-    } catch { return []; }
+      const data = await r.json();
+      return { queries: data?.queries || [], items: data?.items || [] };
+    } catch { return { queries: [], items: [] }; }
   }
 
   function _buildSuggestions(q) {
     const h = _history.filter(x => x.toLowerCase().includes(q.toLowerCase()));
-    _suggestions = { history: h, api: _suggestions.api || [] };
+    _suggestions = { history: h, api: _suggestions.api || [], apiItems: _suggestions.apiItems || [] };
   }
 
   function _onInput(e) {
@@ -145,7 +146,7 @@
     _submitted = false;
 
     if (!val.trim()) {
-      _suggestions = { history: _history, api: [] };
+      _suggestions = { history: _history, api: [], apiItems: [] };
       _ld = false;
       _init = false;
       _ds = []; _albums = []; _artists = [];
@@ -163,11 +164,12 @@
 
     if (_sugT) clearTimeout(_sugT);
     _sugT = setTimeout(async () => {
-      const api = await _fetchSuggestions(val);
+      const { queries, items } = await _fetchSuggestions(val);
       const historySet = new Set(_history.map(x => x.toLowerCase()));
       _suggestions = {
         history: _history.filter(x => x.toLowerCase().includes(val.toLowerCase())),
-        api: api.filter(x => !historySet.has(x.toLowerCase()))
+        api: queries.filter(x => !historySet.has(x.toLowerCase())),
+        apiItems: items
       };
     }, 200);
 
@@ -210,7 +212,7 @@
     _init = false;
     _submitted = false;
     _showSug = false;
-    _suggestions = { history: _history, api: [] };
+    _suggestions = { history: _history, api: [], apiItems: [] };
     if (_t) clearTimeout(_t);
     if (_sugT) clearTimeout(_sugT);
     _syncUrl('');
@@ -218,7 +220,7 @@
 
   function _onFocus() {
     _history = _loadHistory();
-    _suggestions = { history: _qv ? _history.filter(x => x.toLowerCase().includes(_qv.toLowerCase())) : _history, api: _suggestions.api || [] };
+    _suggestions = { history: _qv ? _history.filter(x => x.toLowerCase().includes(_qv.toLowerCase())) : _history, api: _suggestions.api || [], apiItems: _suggestions.apiItems || [] };
     _showSug = true;
   }
 
@@ -273,7 +275,22 @@
     _pl(item, idx);
   }
 
-  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_quickResults.length > 0));
+  function _selectSuggestionSong(item) {
+    _showSug = false;
+    _submitted = true;
+    _saveHistory(_qv.trim());
+    _pl({ videoId: item.videoId, title: item.title, thumbnail: item.thumbnail, author: item.artist, artist: item.artist }, 0);
+  }
+
+  function _selectSuggestionNav(item) {
+    _showSug = false;
+    _saveHistory(_qv.trim());
+    if (item.type === 'artist') { goto(`/artist/${item.id}`); return; }
+    if (item.type === 'album') { goto(`/album/${item.id}`); return; }
+    _selectSuggestion(item.title);
+  }
+
+  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_suggestions.apiItems?.length > 0) || (_quickResults.length > 0));
   // Dipakai buat nge-gate tab yang lagi kelihatan: kalau dropdown suggestion
   // kebuka (pill Album/Artis lagi disembunyiin), paksa balik nampilin
   // section Lagu, biar nggak nyangkut nampilin grid Album/Artis padahal
@@ -359,8 +376,31 @@
             {/each}
           {/if}
 
-          {#if _quickResults.length > 0}
+          {#if _suggestions.apiItems?.length > 0}
             {#if _suggestions.history?.length > 0 || _suggestions.api?.length > 0}
+              <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
+            {/if}
+            {#each _suggestions.apiItems as item}
+              <button on:mousedown|preventDefault={() => item.type === 'song' ? _selectSuggestionSong(item) : _selectSuggestionNav(item)}
+                style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 14px;
+                  background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
+                onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
+                <img src={item.thumbnail} alt={item.title}
+                  style="width:34px;height:34px;border-radius:{item.type === 'artist' ? '50%' : '6px'};object-fit:cover;flex-shrink:0" loading="lazy" />
+                <div style="min-width:0;flex:1">
+                  <p style="font-size:.82rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.title}
+                  </p>
+                  <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.type === 'artist' ? 'Artis' : item.type === 'album' ? (item.artist || 'Album') : item.type === 'playlist' ? (item.artist || 'Playlist') : (item.artist || '')}
+                  </p>
+                </div>
+              </button>
+            {/each}
+          {/if}
+
+          {#if _quickResults.length > 0}
+            {#if _suggestions.history?.length > 0 || _suggestions.api?.length > 0 || _suggestions.apiItems?.length > 0}
               <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
             {/if}
             {#each _quickResults as item, i}
