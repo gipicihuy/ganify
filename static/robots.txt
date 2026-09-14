@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /control
+Disallow: /banned
+Disallow: /maintenance
+Disallow: /api/
+
+Sitemap: https://ganify.my.id/sitemap.xml

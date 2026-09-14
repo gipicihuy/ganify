@@ -1,0 +1,34 @@
+# Ganify
+
+> Ganify adalah website untuk mendengarkan music yang ingin kamu dengarkan dan bisa mencari, buat playlist, download lagu, dll
+
+Ganify jalan di https://ganify.my.id, bisa langsung dipakai lewat browser tanpa install apa apa, dan bisa juga di-install sebagai PWA (progressive web app) di HP atau desktop lewat manifest.json yang udah disediakan.
+
+## Fitur utama
+
+- Pencarian lagu, album, dan artis, lengkap dengan saran pencarian otomatis dan preview hasil paling relevan langsung di kolom pencarian.
+- Pemutaran audio langsung di browser, dengan kontrol dari lock screen / notifikasi (media session) di perangkat yang mendukung.
+- Buat, ganti nama, dan hapus playlist sendiri, lalu tambah atau hapus lagu dari playlist tersebut.
+- Simpan lagu yang disukai (liked songs) dan lihat riwayat lagu yang baru diputar.
+- Download lagu ke perangkat dalam format MP3, sudah termasuk metadata ID3 (judul, artis, cover art).
+- Lihat lirik lagu, termasuk lirik yang tersinkron dengan waktu putar (synced lyrics) kalau tersedia.
+- Rekomendasi "Lagu Serupa" berdasarkan lagu yang lagi diputar.
+- Mode shuffle dan repeat (ulang satu lagu / ulang semua).
+- Bagikan link lagu langsung ke orang lain lewat URL /song/{id}.
+- Halaman khusus artis dan album buat menjelajahi katalog lagu.
+- Login opsional lewat akun Google buat menyinkronkan data (playlist, lagu disukai, riwayat); tanpa login pun tetap bisa dipakai lewat sesi tamu (guest).
+
+## Halaman
+
+- / : Beranda, isinya rekomendasi dan lagu yang lagi rame.
+- /search : Halaman pencarian lagu, album, dan artis.
+- /library : Playlist, lagu disukai, dan riwayat putar milik user.
+- /settings : Pengaturan aplikasi.
+- /settings/about : Informasi tentang Ganify.
+- /song/{id} : Halaman lagu spesifik, bisa dibagikan langsung.
+- /artist/{id} : Halaman profil artis.
+- /album/{id} : Halaman detail album.
+
+## Catatan
+
+Ganify masih terus dikembangkan, jadi fitur di atas bisa nambah atau berubah seiring waktu. Dibuat oleh Givy.

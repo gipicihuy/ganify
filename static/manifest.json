@@ -1,7 +1,7 @@
 {
   "name": "Ganify",
   "short_name": "Ganify",
-  "description": "Cari lagu apa aja ygy😈",
+  "description": "Ganify adalah website untuk mendengarkan music yang ingin kamu dengarkan dan bisa mencari, buat playlist, download lagu, dll",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0A0A0A",

@@ -21,16 +21,19 @@
         <circle cx="220" cy="256" r="4" fill="#F5F5F5"/>
       </svg>
     </div>
-    <h1 style="font-size:1.3rem;font-weight:800;color:#FFFFFF;margin:0 0 4px;letter-spacing:-.02em;font-family:'PakTzy',sans-serif">GANIFY</h1>
-    <p style="font-size:.78rem;color:rgba(255,255,255,.4);margin:0">Versi 1.0.0</p>
+    <h1 style="font-size:1.3rem;font-weight:800;color:#FFFFFF;margin:0 0 6px;letter-spacing:-.02em;font-family:'PakTzy',sans-serif">GANIFY</h1>
+    <p style="font-size:.78rem;color:rgba(255,255,255,.4);margin:0">buat nemenin lu dengerin musik, kapan aja</p>
   </div>
 
   <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px">
     <p style="font-size:.84rem;line-height:1.7;color:rgba(245,245,245,.72);margin:0">
-      Ganify adalah aplikasi pemutar musik yang dibuat untuk pengalaman mendengarkan yang simpel, cepat, dan bebas gangguan. Jelajahi lagu, kelola playlist, dan simpan lagu favoritmu kapan saja.
+      Ganify adalah website untuk mendengarkan music yang ingin kamu dengarkan dan bisa mencari, buat playlist, download lagu, dll
     </p>
   </div>
 
-  <p style="margin-top:24px;text-align:center;font-size:.68rem;color:rgba(255,255,255,.35);letter-spacing:.04em">&copy; 2026 Ganify. All rights reserved.</p>
+  <div style="margin-top:24px;text-align:center">
+    <p style="font-size:.76rem;color:rgba(255,255,255,.4);margin:0 0 4px">Dibuat oleh Givy, masih terus dikembangin pelan pelan</p>
+    <p style="font-size:.65rem;color:rgba(255,255,255,.22);letter-spacing:.04em;margin:0">v1.0.0 &middot; &copy; 2026 Ganify</p>
+  </div>
 
 </div>
