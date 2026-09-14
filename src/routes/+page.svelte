@@ -64,7 +64,29 @@
   ];
 
   $: _hero = _ds.length ? { item: _ds[0], idx: 0 } : null;
-  $: _quick = _ds.slice(1, 5).map((item, i) => ({ item, idx: i + 1 }));
+
+  let _quickPicks = [];
+  let _quickPicksLoading = true;
+
+  async function _loadQuickPicks() {
+    _quickPicksLoading = true;
+    try {
+      const res = await fetch('/api/quick-picks');
+      const data = await res.json();
+      _quickPicks = (data?.list || []).filter((s) => s.videoId);
+    } catch {
+      _quickPicks = [];
+    } finally {
+      _quickPicksLoading = false;
+    }
+  }
+
+  // Kalau user belum punya histori/like sama sekali (baru pertama buka),
+  // /api/quick-picks balik kosong — daripada section-nya hilang, isi
+  // sementara dari feed mood yang lagi tampil biar tetap ada isinya.
+  $: _quickDisplay = _quickPicks.length
+    ? _quickPicks
+    : _ds.slice(1, 5);
 
   function _shuffle(arr) {
     const a = arr.slice();
@@ -441,7 +463,7 @@
   function _saveCache() {
     _homeCache = {
       ds: _ds, collection: _collection, activeMood: _activeMood,
-      artists: _artists, trending: _trending, mix: _mix
+      artists: _artists, trending: _trending, mix: _mix, quickPicks: _quickPicks
     };
   }
 
@@ -453,6 +475,8 @@
       _artists = _homeCache.artists;
       _trending = _homeCache.trending || [];
       _mix = _homeCache.mix || [];
+      _quickPicks = _homeCache.quickPicks || [];
+      _quickPicksLoading = false;
       _artistsLoading = false;
       _trendingLoading = false;
       _ld = false;
@@ -469,7 +493,8 @@
     // bareng request feed+trending.
     await Promise.all([
       _loadFeed(_activeMood),
-      _loadTrending()
+      _loadTrending(),
+      _loadQuickPicks()
     ]);
     _saveCache();
     await tick();
@@ -502,6 +527,14 @@
   async function _plMix(item, idx) {
     _loadingId = item.videoId;
     _p1k.set(_mix);
+    _x9a.set(idx);
+    _q8z.set(item);
+    setTimeout(() => { _loadingId = null; }, 3000);
+  }
+
+  async function _plQuick(item, idx) {
+    _loadingId = item.videoId;
+    _p1k.set(_quickDisplay);
     _x9a.set(idx);
     _q8z.set(item);
     setTimeout(() => { _loadingId = null; }, 3000);
@@ -710,48 +743,44 @@
       </div>
     {/if}
 
-    {#if _quick.length}
+    {#if _quickDisplay.length}
       <div style="margin-bottom:24px">
         <div class="section-title" style="margin-bottom:10px">
           <span class="bar"></span>
-          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Rekomendasi Cepat</span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Pilihan Cepat</span>
         </div>
-        <div class="quick-grid">
-          {#each _quick as { item, idx }, i}
-            <div class="animate-card-up quick-card"
-              style="border-radius:0;overflow:hidden;position:relative;cursor:pointer;animation-delay:{i*40}ms;
-                {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.4);box-shadow:0 0 16px rgba(255,255,255,.13)' : ''}"
+        <div class="quick-pick-scroll hide-scrollbar">
+          {#each _quickDisplay as item, i}
+            <div class="animate-card-up quick-pick-row"
+              class:quick-pick-row-start={i % 4 === 0}
+              style="animation-delay:{Math.min(i,7)*40}ms"
               role="button" tabindex="0"
-              on:click={() => _pl(item, idx)} on:keydown={e => e.key === 'Enter' && _pl(item, idx)}>
-              <img src={item.thumbnail} alt={item.title} class="quick-img" loading="lazy" />
-              <div class="quick-scrim"></div>
-
-              {#if _loadingId === item.videoId}
-                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.4)">
-                  <div class="mini-spin"></div>
-                </div>
-              {:else if $_q8z?.videoId === item.videoId}
-                <div style="position:absolute;top:8px;right:8px;display:flex;align-items:flex-end;gap:2px;height:12px">
-                  <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>
-                  <div class="eq-bar-nm animate-eq-b" style="height:10px"></div>
-                  <div class="eq-bar-nm animate-eq-c" style="height:5px"></div>
-                </div>
-              {:else}
-                <button on:click={e => _openMenu(e, item)}
-                  style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-                    background:rgba(10,10,10,.5);border:none;cursor:pointer;color:rgba(245,245,245,.85)">
-                  <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                </button>
-              {/if}
-
-              <div class="quick-body">
-                <p style="font-size:.72rem;font-weight:700;line-height:1.25;margin:0 0 2px;
-                  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-                  color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'}">{item.title}</p>
-                {#if item.author}
-                  <p style="font-size:.62rem;font-weight:600;color:rgba(245,245,245,.55);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+              on:click={() => _plQuick(item, i)} on:keydown={e => e.key === 'Enter' && _plQuick(item, i)}>
+              <div class="quick-pick-thumb-wrap">
+                <img src={item.thumbnail} alt={item.title} class="quick-pick-thumb" loading="lazy" />
+                {#if _loadingId === item.videoId}
+                  <div class="quick-pick-thumb-overlay"><div class="mini-spin"></div></div>
+                {:else if $_q8z?.videoId === item.videoId}
+                  <div class="quick-pick-thumb-overlay">
+                    <div style="display:flex;align-items:flex-end;gap:2px;height:12px">
+                      <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>
+                      <div class="eq-bar-nm animate-eq-b" style="height:10px"></div>
+                      <div class="eq-bar-nm animate-eq-c" style="height:5px"></div>
+                    </div>
+                  </div>
                 {/if}
               </div>
+              <div class="quick-pick-body">
+                <p style="font-size:.76rem;font-weight:700;line-height:1.25;margin:0 0 1px;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                  color:{$_q8z?.videoId === item.videoId ? '#FFFFFF' : '#F5F5F5'}">{item.title}</p>
+                {#if item.author}
+                  <p style="font-size:.65rem;font-weight:600;color:rgba(245,245,245,.55);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{item.author}</p>
+                {/if}
+              </div>
+              <button on:click={e => _openMenu(e, item)} class="quick-pick-menu-btn">
+                <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+              </button>
             </div>
           {/each}
         </div>
@@ -930,18 +959,37 @@
     box-shadow: 0 4px 16px rgba(255,255,255,.35);
   }
 
-  .quick-grid {
+  .quick-pick-scroll {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(4, 1fr);
+    grid-auto-columns: 100%;
+    height: 232px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quick-pick-row {
+    display: flex;
+    align-items: center;
     gap: 10px;
+    padding: 6px 4px;
+    cursor: pointer;
+    min-width: 0;
   }
-  .quick-card { aspect-ratio: 1; }
-  .quick-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  .quick-scrim {
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(10,10,10,.05) 0%, rgba(10,10,10,.25) 45%, rgba(10,10,10,.88) 100%);
+  .quick-pick-row-start { scroll-snap-align: start; }
+  .quick-pick-thumb-wrap { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+  .quick-pick-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .quick-pick-thumb-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(10,10,10,.45);
   }
-  .quick-body { position: absolute; left: 10px; right: 10px; bottom: 9px; min-width: 0; }
+  .quick-pick-body { flex: 1; min-width: 0; }
+  .quick-pick-menu-btn {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; color: rgba(245,245,245,.55);
+  }
 
   @media (min-width: 420px) {
     .hero-body { right: 80px; }
