@@ -223,7 +223,13 @@
   }
 
   function _onBlur() {
-    setTimeout(() => { _showSug = false; }, 180);
+    setTimeout(() => {
+      _showSug = false;
+      if (_qv.trim() && !_submitted) {
+        _submitted = true;
+        _saveHistory(_qv.trim());
+      }
+    }, 180);
   }
 
   async function _pl(item, idx) {
