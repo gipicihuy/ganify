@@ -237,7 +237,20 @@
     return `<span style="color:rgba(245,245,245,.38)">${before}</span><span style="color:#F5F5F5;font-weight:700">${match}</span><span style="color:rgba(245,245,245,.38)">${after}</span>`;
   }
 
-  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0));
+  // Quick-result items ala Rythim: begitu hasil pencarian buat query
+  // sekarang udah settle (!_ld), tampilin beberapa lagu teratas langsung
+  // di dropdown suggestion, biar user bisa langsung tap-play tanpa perlu
+  // submit/pindah ke tab "Lagu" dulu. Di-gate pake !_ld biar nggak nampilin
+  // hasil query lama yang sempet nyangkut sebelum debounce settle.
+  $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0) ? _ds.slice(0, 3) : [];
+
+  function _selectQuick(item, idx) {
+    _showSug = false;
+    _saveHistory(_qv.trim());
+    _pl(item, idx);
+  }
+
+  $: _hasSug = _showSug && ((_suggestions.history?.length > 0) || (_suggestions.api?.length > 0) || (_quickResults.length > 0));
 </script>
 
 <div style="max-width:560px;margin:0 auto;padding:24px 16px 0">
@@ -314,6 +327,31 @@
                 onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
                 <svg width="14" height="14" fill="rgba(255,255,255,.25)" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 <span style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{@html _highlight(s, _qv)}</span>
+              </button>
+            {/each}
+          {/if}
+
+          {#if _quickResults.length > 0}
+            {#if _suggestions.history?.length > 0 || _suggestions.api?.length > 0}
+              <div style="height:1px;background:rgba(255,255,255,.06);margin:2px 0"></div>
+            {/if}
+            {#each _quickResults as item, i}
+              <button on:mousedown|preventDefault={() => _selectQuick(item, i)}
+                style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 14px;
+                  background:none;border:none;cursor:pointer;text-align:left;transition:background .12s"
+                onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='none'">
+                <img src={item.thumbnail} alt={item.title}
+                  style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0" loading="lazy" />
+                <div style="min-width:0;flex:1">
+                  <p style="font-size:.82rem;font-weight:700;color:#F5F5F5;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {item.title}
+                  </p>
+                  {#if item.author}
+                    <p style="font-size:.7rem;color:rgba(245,245,245,.4);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      {item.author}
+                    </p>
+                  {/if}
+                </div>
               </button>
             {/each}
           {/if}
