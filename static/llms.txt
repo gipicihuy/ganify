@@ -14,7 +14,7 @@ Ganify jalan di https://ganify.my.id, bisa langsung dipakai lewat browser tanpa 
 - Lihat lirik lagu, termasuk lirik yang tersinkron dengan waktu putar (synced lyrics) kalau tersedia.
 - Rekomendasi "Lagu Serupa" berdasarkan lagu yang lagi diputar.
 - Mode shuffle dan repeat (ulang satu lagu / ulang semua).
-- Bagikan link lagu langsung ke orang lain lewat URL /song/{id}.
+- Bagikan link lagu langsung ke orang lain lewat URL /song/{id}, yang menampilkan halaman konfirmasi ringan (cover, judul, artis) sebelum masuk ke pemutar lagu.
 - Halaman khusus artis dan album buat menjelajahi katalog lagu.
 - Login opsional lewat akun Google buat menyinkronkan data (playlist, lagu disukai, riwayat); tanpa login pun tetap bisa dipakai lewat sesi tamu (guest).
 
@@ -25,7 +25,8 @@ Ganify jalan di https://ganify.my.id, bisa langsung dipakai lewat browser tanpa 
 - /library : Playlist, lagu disukai, dan riwayat putar milik user.
 - /settings : Pengaturan aplikasi.
 - /settings/about : Informasi tentang Ganify.
-- /song/{id} : Halaman lagu spesifik, bisa dibagikan langsung.
+- /song/{id} : Halaman konfirmasi berbagi lagu, bisa dibagikan langsung.
+- /play/{id} : Halaman pemutar lagu spesifik.
 - /artist/{id} : Halaman profil artis.
 - /album/{id} : Halaman detail album.
 

@@ -495,13 +495,13 @@
   let _npReturnPath = '/';
 
   function _isSongRoute(pathname) {
-    return pathname.startsWith('/song/');
+    return pathname.startsWith('/play/');
   }
 
   $: if (_mounted && $_p1k.length) _saveQueueSnapshot($_p1k, $_x9a);
 
   $: if (_mounted && $_showNP && $_q8z) {
-    const _npTarget = `/song/${$_q8z.videoId}`;
+    const _npTarget = `/play/${$_q8z.videoId}`;
     const _onSongRoute = _isSongRoute($page.url.pathname);
     if (!_onSongRoute) _npReturnPath = $page.url.pathname + $page.url.search;
     if ($page.url.pathname !== _npTarget) {
@@ -792,7 +792,7 @@
 
 <BindPrompt />
 
-<div style="padding-bottom:{_rt.startsWith('/banned') || _rt.startsWith('/maintenance') ? '0' : ($_q8z ? '11rem' : '4.5rem')}">
+<div style="padding-bottom:{_rt.startsWith('/banned') || _rt.startsWith('/maintenance') || _rt.startsWith('/song/') ? '0' : ($_q8z ? '11rem' : '4.5rem')}">
   <slot />
 </div>
 
@@ -806,7 +806,7 @@
   </div>
 {/if}
 
-{#if $_q8z}
+{#if $_q8z && !_rt.startsWith('/song/')}
 <div
   bind:this={_playerEl}
   class="player-bar"
@@ -1316,7 +1316,7 @@
   </div>
 {/if}
 
-{#if !_rt.startsWith('/banned') && !_rt.startsWith('/maintenance')}
+{#if !_rt.startsWith('/banned') && !_rt.startsWith('/maintenance') && !_rt.startsWith('/song/')}
 <nav class="bottom-nav">
   <ul class="bottom-nav-list">
     {#each _navItems as [p, l, ic], i}
