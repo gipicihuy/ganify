@@ -329,6 +329,40 @@ function splitSubtitleRuns(runs) {
   return groups;
 }
 
+function extractSongFromResponsiveRenderer(r) {
+  if (!r) return null;
+  const rowMusicVideoType = r?.overlay?.musicItemThumbnailOverlayRenderer
+    ?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
+    ?.watchEndpoint?.watchEndpointMusicSupportedConfigs
+    ?.watchEndpointMusicConfig?.musicVideoType || '';
+  if (rowMusicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || rowMusicVideoType === 'MUSIC_VIDEO_TYPE_UGC') return null;
+
+  const videoId = r?.playlistItemData?.videoId || '';
+  if (!videoId) return null;
+
+  const cols = r.flexColumns || [];
+  const title = getRunsText(cols[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs);
+  if (!title) return null;
+
+  const subRuns = cols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+  let artist = '', artistId = '', album = '', albumId = '';
+  for (const run of subRuns) {
+    const text = run.text || '';
+    const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
+    if (browseId.startsWith('UC') && !artist) { artist = text; artistId = browseId; }
+    else if (browseId.startsWith('MPRE') && !album) { album = text; albumId = browseId; }
+  }
+
+  const accLabel = cols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.accessibility?.accessibilityData?.label || '';
+  let duration = durationToColon(accLabel);
+  if (!duration) duration = durationToColon(subRuns.map(x => x.text).join(' '));
+
+  const thumbs = r?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+  const thumbnail = toHDThumbnail(thumbs.length ? thumbs[thumbs.length - 1].url : '', videoId);
+
+  return { title: cleanTitle(title), videoId, thumbnail, duration, author: artist, artist, artistId, album: album || '', albumId };
+}
+
 function extractTopResult(data) {
   if (!data) return null;
   const tabs = data?.contents?.tabbedSearchResultsRenderer?.tabs || [];
@@ -338,7 +372,13 @@ function extractTopResult(data) {
       const card = section?.musicCardShelfRenderer;
       if (!card) continue;
       const videoId = card?.onTap?.watchEndpoint?.videoId || '';
-      if (!videoId) continue;
+      if (!videoId) {
+        for (const c of card?.contents || []) {
+          const fallback = extractSongFromResponsiveRenderer(c?.musicResponsiveListItemRenderer);
+          if (fallback) return fallback;
+        }
+        continue;
+      }
       const musicVideoType = card?.onTap?.watchEndpoint?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType || '';
       if (musicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || musicVideoType === 'MUSIC_VIDEO_TYPE_UGC') continue;
       const title = getRunsText(card?.title?.runs?.slice(0, 1));
