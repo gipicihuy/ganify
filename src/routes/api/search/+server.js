@@ -3,7 +3,9 @@ import { getClientIp, isBlocked, notifyEvent, runBackground } from '$lib/server/
 const SECRET = 'msc_s3cr3t_g1vy_2026';
 const ENC_KEY_HEX = '4d7a9c2e1f8b3a6d0e5c9f2b7a4e1d8c';
 const SIGN_TTL = 15000;
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
+const MUSIC_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+const MUSIC_CLIENT_VERSION = '1.20260804.16.00';
 
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
@@ -92,16 +94,31 @@ function durationToColon(text) {
 
 async function fetchYoutube(query, type) {
   const payload = {
-    context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20240101.00.00', hl: 'id', gl: 'ID' } },
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: MUSIC_CLIENT_VERSION,
+        hl: 'id',
+        gl: 'ID',
+        userAgent: UA
+      }
+    },
     query
   };
   if (type === 'songs') payload.params = 'EgWKAQIIAWoSEAQQAxAFEAkQChAVEBAQERAO';
   else if (type === 'artists') payload.params = 'EgWKAQIgAWoKEAoQCRADEAA=';
   else if (type === 'all') delete payload.params;
 
-  const r = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
+  const r = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${MUSIC_API_KEY}&prettyPrint=false`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': UA, 'Origin': 'https://music.youtube.com' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': UA,
+      'X-Youtube-Client-Name': '67',
+      'X-Youtube-Client-Version': MUSIC_CLIENT_VERSION,
+      Origin: 'https://music.youtube.com',
+      Referer: 'https://music.youtube.com/'
+    },
     body: JSON.stringify(payload)
   });
   return await r.json();
