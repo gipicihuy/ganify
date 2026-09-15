@@ -17,6 +17,7 @@
   let _ds = [];
   let _albums = [];
   let _artists = [];
+  let _topResult = null;
   let _tab = 'songs';
   let _suggestions = [];
   let _showSug = false;
@@ -97,6 +98,7 @@
       _ds = r.songs || [];
       _albums = r.albums || [];
       _artists = r.artists || [];
+      _topResult = r.topResult || null;
       _searchResults.set(_ds);
       _searchAlbums.set(_albums);
       _searchArtists.set(_artists);
@@ -105,7 +107,7 @@
     } catch (e) {
       if (e?.name === 'AbortError') return;
       if (_qv !== _reqVal) return;
-      _ds = []; _albums = []; _artists = [];
+      _ds = []; _albums = []; _artists = []; _topResult = null;
       _searchResults.set([]);
       _searchAlbums.set([]);
       _searchArtists.set([]);
@@ -149,7 +151,7 @@
       _suggestions = { history: _history, api: [], apiItems: [] };
       _ld = false;
       _init = false;
-      _ds = []; _albums = []; _artists = [];
+      _ds = []; _albums = []; _artists = []; _topResult = null;
       _searchResults.set([]);
       _searchAlbums.set([]);
       _searchArtists.set([]);
@@ -208,7 +210,7 @@
     _searchAlbums.set([]);
     _searchArtists.set([]);
     _searchInit.set(false);
-    _ds = []; _albums = []; _artists = [];
+    _ds = []; _albums = []; _artists = []; _topResult = null;
     _init = false;
     _submitted = false;
     _showSug = false;
@@ -267,6 +269,10 @@
   $: _quickResults = (!_ld && _qv.trim() && _ds.length > 0)
     ? _ds.slice(0, _QUICK_RESULT_MAX)
     : [];
+
+  $: _songsGrid = _topResult
+    ? _ds.filter(s => s.videoId !== _topResult.videoId)
+    : _ds;
 
   function _selectQuick(item, idx) {
     _showSug = false;
@@ -467,6 +473,50 @@
     </div>
 
   {:else}
+    {#if _topResult && !_hasSug}
+      <div style="margin-bottom:18px">
+        <div class="section-title" style="margin-bottom:10px">
+          <span class="bar"></span>
+          <span style="font-size:.85rem;font-weight:700;color:#F5F5F5">Top Result</span>
+        </div>
+        <div class="animate-card-up"
+          style="border-radius:16px;padding:14px;display:flex;gap:14px;align-items:center;
+            background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);cursor:pointer;
+            {$_q8z?.videoId === _topResult.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}"
+          role="button" tabindex="0"
+          on:click={() => _pl(_topResult, 0)} on:keydown={e => e.key === 'Enter' && _pl(_topResult, 0)}>
+          <div style="position:relative;flex-shrink:0">
+            <img src={_topResult.thumbnail} alt={_topResult.title}
+              style="width:84px;height:84px;border-radius:10px;object-fit:cover;display:block" loading="lazy" />
+            <div style="position:absolute;inset:0;border-radius:10px;display:flex;align-items:center;justify-content:center;
+              background:rgba(10,10,10,{_loadingId === _topResult.videoId ? '.55' : '0'});transition:background .15s">
+              {#if _loadingId === _topResult.videoId}
+                <div class="mini-spin"></div>
+              {:else if $_q8z?.videoId === _topResult.videoId}
+                <div style="width:34px;height:34px;border-radius:50%;background:rgba(10,10,10,.6);display:flex;align-items:flex-end;justify-content:center;gap:2px;padding-bottom:8px">
+                  <div class="eq-bar-nm animate-eq-a" style="height:6px"></div>
+                  <div class="eq-bar-nm animate-eq-b" style="height:10px"></div>
+                  <div class="eq-bar-nm animate-eq-c" style="height:5px"></div>
+                </div>
+              {/if}
+            </div>
+          </div>
+          <div style="min-width:0;flex:1">
+            <p style="font-size:1rem;font-weight:800;line-height:1.3;margin:0 0 4px;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+              color:{$_q8z?.videoId === _topResult.videoId ? '#FFFFFF' : '#F5F5F5'}">{_topResult.title}</p>
+            <p style="font-size:.78rem;font-weight:600;color:rgba(245,245,245,.5);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              Lagu{#if _topResult.author} · {_topResult.author}{/if}
+            </p>
+          </div>
+          <button on:click|stopPropagation={e => _openMenu(e, _topResult)}
+            style="width:30px;height:30px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+              background:transparent;border:none;cursor:pointer;color:rgba(245,245,245,.35)">
+            <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+          </button>
+        </div>
+      </div>
+    {/if}
     {#if !_hasSug}
     <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto" class="hide-scrollbar">
       <button on:click={() => _setTab('songs')} class="chip-tab {_effectiveTab==='songs' ? 'active' : ''}"
@@ -497,9 +547,10 @@
         </div>
       {:else}
       <div class="song-grid" style="padding-bottom:16px">
-        {#each _ds as item, i}
+        {#each _songsGrid as item, gi}
+          {@const i = _ds.findIndex(x => x.videoId === item.videoId)}
           <div class="animate-card-up"
-            style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(i,10)*30}ms;
+            style="border-radius:14px;padding:9px;display:flex;gap:10px;align-items:center;animation-delay:{Math.min(gi,10)*30}ms;
               {$_q8z?.videoId === item.videoId ? 'border-color:rgba(255,255,255,.38);box-shadow:0 0 18px rgba(255,255,255,.13)' : ''}">
 
             <button on:click={() => _pl(item, i)}
