@@ -508,6 +508,40 @@
     _shareSheetTrack.set(null);
   }
 
+  // Swipe-to-dismiss, sama persis polanya kayak sheet menu titik tiga
+  // (_onMenuSheetTouchStart/Move/End di +layout.svelte).
+  let _shareSheetEl = null;
+  let _shareSwipeStartY = 0;
+  let _shareSwipeDeltaY = 0;
+  let _shareIsSwiping = false;
+
+  function _onShareSheetTouchStart(e) {
+    _shareSwipeStartY = e.touches[0].clientY;
+    _shareSwipeDeltaY = 0;
+    _shareIsSwiping = true;
+    if (_shareSheetEl) _shareSheetEl.style.transition = 'none';
+  }
+
+  function _onShareSheetTouchMove(e) {
+    if (!_shareIsSwiping) return;
+    const dy = e.touches[0].clientY - _shareSwipeStartY;
+    if (dy <= 0) { _shareSwipeDeltaY = 0; return; }
+    _shareSwipeDeltaY = dy;
+    if (_shareSheetEl) _shareSheetEl.style.transform = `translateY(${dy}px)`;
+  }
+
+  function _onShareSheetTouchEnd() {
+    if (!_shareIsSwiping) return;
+    _shareIsSwiping = false;
+    if (_shareSwipeDeltaY > 90) {
+      _shareSheetLater();
+    } else if (_shareSheetEl) {
+      _shareSheetEl.style.transition = 'transform .2s cubic-bezier(.4,0,.2,1)';
+      _shareSheetEl.style.transform = 'translateY(0)';
+    }
+    _shareSwipeDeltaY = 0;
+  }
+
   onMount(async () => {
     _handleShareLink();
 
@@ -981,9 +1015,14 @@
   {@const t = $_shareSheetTrack}
   {@const sub = t.artist || t.author || ''}
   <div class="share-sheet-overlay" role="presentation" on:click={_shareSheetLater}>
-    <div class="share-sheet" on:click|stopPropagation>
-      <div class="share-sheet-grabber"></div>
-      <p class="share-sheet-eyebrow">Seseorang membagikan lagu ini kepadamu</p>
+    <div bind:this={_shareSheetEl} class="share-sheet" on:click|stopPropagation>
+      <div class="share-sheet-header"
+        on:touchstart|passive={_onShareSheetTouchStart}
+        on:touchmove={_onShareSheetTouchMove}
+        on:touchend={_onShareSheetTouchEnd}>
+        <div class="share-sheet-grabber"></div>
+        <p class="share-sheet-eyebrow">Seseorang membagikan lagu ini kepadamu</p>
+      </div>
 
       <div class="share-sheet-cover">
         <img src={t.thumbnail} alt={t.title} loading="eager" />
@@ -995,7 +1034,7 @@
       {/if}
 
       <div class="share-sheet-actions">
-        <button class="share-sheet-btn share-sheet-btn-primary" on:click={_shareSheetPlayNow}>Putar Sekarang</button>
+        <button class="share-sheet-btn gold-gradient" on:click={_shareSheetPlayNow}>Putar Sekarang</button>
         <button class="share-sheet-btn share-sheet-btn-secondary" on:click={_shareSheetLater}>Nanti</button>
       </div>
     </div>
@@ -1016,15 +1055,21 @@
 
   .share-sheet {
     width: 100%;
-    max-width: 420px;
+    max-width: 380px;
     background: #1c1c1c;
     border-radius: 24px 24px 0 0;
     border-top: 1px solid rgba(255, 255, 255, .15);
-    padding: 28px 24px 36px;
+    padding: 0 20px 28px;
     text-align: center;
     position: relative;
     will-change: transform;
     animation: _shareSheetIn .32s cubic-bezier(.16, 1, .3, 1);
+  }
+
+  .share-sheet-header {
+    padding: 16px 0 12px;
+    position: relative;
+    touch-action: none;
   }
 
   .share-sheet-grabber {
@@ -1032,25 +1077,28 @@
     height: 4px;
     border-radius: 99px;
     background: rgba(255, 255, 255, .25);
-    margin: 0 auto 18px;
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .share-sheet-eyebrow {
-    font-size: .85rem;
+    font-size: .78rem;
     color: rgba(245, 245, 245, .6);
-    margin: 0 0 20px;
+    margin: 14px 0 0;
     letter-spacing: .01em;
   }
 
   .share-sheet-cover {
-    width: 180px;
-    height: 180px;
-    margin: 0 auto 20px;
-    border-radius: 16px;
+    width: 128px;
+    height: 128px;
+    margin: 0 auto 16px;
+    border-radius: 14px;
     overflow: hidden;
     background: rgba(255, 255, 255, .06);
     border: 1px solid rgba(255, 255, 255, .1);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, .4);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .4);
   }
 
   .share-sheet-cover img {
@@ -1060,22 +1108,22 @@
   }
 
   .share-sheet-title {
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #F5F5F5;
-    margin: 0 0 4px;
+    margin: 0 0 3px;
     letter-spacing: -.01em;
     line-height: 1.3;
   }
 
   .share-sheet-artist {
-    font-size: .88rem;
+    font-size: .8rem;
     color: rgba(245, 245, 245, .55);
-    margin: 0 0 24px;
+    margin: 0 0 20px;
   }
 
   .share-sheet-title:last-of-type {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
 
   .share-sheet-actions {
@@ -1086,9 +1134,9 @@
 
   .share-sheet-btn {
     width: 100%;
-    padding: 13px 20px;
+    padding: 12px 20px;
     border-radius: 999px;
-    font-size: .92rem;
+    font-size: .88rem;
     font-weight: 700;
     border: none;
     cursor: pointer;
@@ -1099,8 +1147,7 @@
     transform: scale(.97);
   }
 
-  .share-sheet-btn-primary {
-    background: #F5C518;
+  .share-sheet-btn.gold-gradient {
     color: #141414;
   }
 
