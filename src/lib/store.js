@@ -21,3 +21,8 @@ export const _searchAlbums = writable([]);
 export const _searchArtists = writable([]);
 export const _searchInit = writable(false);
 export const _likedSongs = writable([]);
+
+// Bottom sheet "Seseorang membagikan lagu ini kepadamu" - cuma diisi kalau
+// Home dibuka lewat link share lagu (/song/[id] redirect ke /?share=...).
+// null = gak nampil sama sekali di navigasi Home yang normal.
+export const _shareSheetTrack = writable(null);

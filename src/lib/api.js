@@ -201,6 +201,14 @@ export async function _getSongInfo(videoId) {
   return j.status ? j.result : null;
 }
 
+// Versi ringan _getSongInfo, khusus buat bottom sheet share di Home - gak
+// nunggu queue up-next yang gak dipakai di situ.
+export async function _getSongPreview(videoId) {
+  const r = await fetch(`/api/song/preview?id=${encodeURIComponent(videoId)}`);
+  const j = await r.json();
+  return j.status ? j.result : null;
+}
+
 export async function _fetchAudioBytes(videoId, title = '', artist = '') {
   let q = `/api/download?id=${encodeURIComponent(videoId)}`;
   if (title) q += `&title=${encodeURIComponent(title)}`;

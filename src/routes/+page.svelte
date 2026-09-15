@@ -8,8 +8,9 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { _g9, _getHome, _getArtist } from '$lib/api.js';
-  import { _q8z, _p1k, _x9a, _showMenu, _playlists } from '$lib/store.js';
+  import { page } from '$app/stores';
+  import { _g9, _getHome, _getArtist, _getSongPreview } from '$lib/api.js';
+  import { _q8z, _p1k, _x9a, _showMenu, _playlists, _shareSheetTrack } from '$lib/store.js';
   import { getPlaylists } from '$lib/playlist.js';
   import NotificationBell from '$lib/NotificationBell.svelte';
 
@@ -467,7 +468,49 @@
     };
   }
 
+  // Bottom sheet "Seseorang membagikan lagu ini kepadamu" - cuma kepicu
+  // kalau Home dibuka lewat redirect dari link share lagu (/song/[id] ->
+  // /?share=<id>). Dipanggil terpisah & gak di-await di onMount biar gak
+  // nunda render feed Home yang normal.
+  let _shareSheetLoading = false;
+
+  async function _handleShareLink() {
+    const shareId = $page.url.searchParams.get('share');
+    if (!shareId) return;
+
+    // Bersihin query dari address bar sesegera mungkin - history API murni,
+    // gak lewat SvelteKit goto(), jadi gak ada lifecycle navigasi/reload
+    // tambahan. Reload atau tombol back sesudahnya gak bakal nge-trigger
+    // sheet ini lagi.
+    if (typeof history !== 'undefined') {
+      history.replaceState(history.state, '', '/');
+    }
+
+    _shareSheetLoading = true;
+    try {
+      const track = await _getSongPreview(shareId);
+      if (track) _shareSheetTrack.set(track);
+    } catch {
+      // Link rusak / lagu udah gak ada - diemin aja, Home tetap normal
+      // tanpa sheet, gak perlu nampilin error ke user.
+    } finally {
+      _shareSheetLoading = false;
+    }
+  }
+
+  function _shareSheetPlayNow() {
+    const t = $_shareSheetTrack;
+    _shareSheetTrack.set(null);
+    if (t) goto(`/play/${t.videoId}`);
+  }
+
+  function _shareSheetLater() {
+    _shareSheetTrack.set(null);
+  }
+
   onMount(async () => {
+    _handleShareLink();
+
     if (_homeCache) {
       _ds = _homeCache.ds;
       _collection = _homeCache.collection;
@@ -549,6 +592,10 @@
     e.stopPropagation();
     _showMenu.set(item);
     getPlaylists().then((list) => _playlists.set(list)).catch(() => {});
+  }
+
+  $: if (typeof document !== 'undefined') {
+    document.body.style.overflow = $_shareSheetTrack ? 'hidden' : '';
   }
 </script>
 
@@ -930,8 +977,148 @@
 
 </div>
 
+{#if $_shareSheetTrack}
+  {@const t = $_shareSheetTrack}
+  {@const sub = t.artist || t.author || ''}
+  <div class="share-sheet-overlay" role="presentation" on:click={_shareSheetLater}>
+    <div class="share-sheet" on:click|stopPropagation>
+      <div class="share-sheet-grabber"></div>
+      <p class="share-sheet-eyebrow">Seseorang membagikan lagu ini kepadamu</p>
+
+      <div class="share-sheet-cover">
+        <img src={t.thumbnail} alt={t.title} loading="eager" />
+      </div>
+
+      <p class="share-sheet-title">{t.title}</p>
+      {#if sub}
+        <p class="share-sheet-artist">{sub}</p>
+      {/if}
+
+      <div class="share-sheet-actions">
+        <button class="share-sheet-btn share-sheet-btn-primary" on:click={_shareSheetPlayNow}>Putar Sekarang</button>
+        <button class="share-sheet-btn share-sheet-btn-secondary" on:click={_shareSheetLater}>Nanti</button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
+  .share-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, .6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: _shareOverlayIn .28s ease;
+  }
+
+  .share-sheet {
+    width: 100%;
+    max-width: 420px;
+    background: #1c1c1c;
+    border-radius: 24px 24px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, .15);
+    padding: 28px 24px 36px;
+    text-align: center;
+    position: relative;
+    will-change: transform;
+    animation: _shareSheetIn .32s cubic-bezier(.16, 1, .3, 1);
+  }
+
+  .share-sheet-grabber {
+    width: 36px;
+    height: 4px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .25);
+    margin: 0 auto 18px;
+  }
+
+  .share-sheet-eyebrow {
+    font-size: .85rem;
+    color: rgba(245, 245, 245, .6);
+    margin: 0 0 20px;
+    letter-spacing: .01em;
+  }
+
+  .share-sheet-cover {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .4);
+  }
+
+  .share-sheet-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .share-sheet-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #F5F5F5;
+    margin: 0 0 4px;
+    letter-spacing: -.01em;
+    line-height: 1.3;
+  }
+
+  .share-sheet-artist {
+    font-size: .88rem;
+    color: rgba(245, 245, 245, .55);
+    margin: 0 0 24px;
+  }
+
+  .share-sheet-title:last-of-type {
+    margin-bottom: 24px;
+  }
+
+  .share-sheet-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .share-sheet-btn {
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 999px;
+    font-size: .92rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: transform .2s ease, opacity .2s ease;
+  }
+
+  .share-sheet-btn:active {
+    transform: scale(.97);
+  }
+
+  .share-sheet-btn-primary {
+    background: #F5C518;
+    color: #141414;
+  }
+
+  .share-sheet-btn-secondary {
+    background: transparent;
+    color: #F5F5F5;
+    border: 1px solid rgba(255, 255, 255, .15);
+  }
+
+  @keyframes _shareOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes _shareSheetIn {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
   .mini-spin {
     width: 22px;
     height: 22px;

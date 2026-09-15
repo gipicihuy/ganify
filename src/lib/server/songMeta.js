@@ -170,47 +170,21 @@ async function fetchQueuePanel(videoId, withMix) {
     ?.content?.playlistPanelRenderer;
 }
 
-export async function fetchTrackMeta(videoId) {
-  let queue = await fetchQueuePanel(videoId, true);
-
-  if (!queue?.contents || queue.contents.length <= 1) {
-    try {
-      const plain = await fetchQueuePanel(videoId, false);
-      if (plain?.contents?.length > (queue?.contents?.length || 0)) queue = plain;
-    } catch { }
-  }
-
-  const track =
+function pickPrimaryTrack(queue, videoId) {
+  return (
     queue?.contents?.find((c) => c.playlistPanelVideoRenderer?.videoId === videoId)
       ?.playlistPanelVideoRenderer ||
     queue?.contents?.find((c) => c.playlistPanelVideoRenderer?.selected)
       ?.playlistPanelVideoRenderer ||
-    queue?.contents?.[0]?.playlistPanelVideoRenderer;
+    queue?.contents?.[0]?.playlistPanelVideoRenderer ||
+    null
+  );
+}
 
-  if (!track) return null;
-
-  const upNext = (queue?.contents || [])
-    .map((c) => parseQueueTrack(c.playlistPanelVideoRenderer))
-    .filter(Boolean);
-
-  const needsResolve = upNext.filter((t) => !t.artistId).slice(0, 20);
-  if (needsResolve.length) {
-    const resolved = await Promise.allSettled(
-      needsResolve.map(async (t) => {
-        const searchJson = await searchSongs(t.title);
-        return { videoId: t.videoId, match: findSongRowByVideoId(searchJson, t.videoId) };
-      })
-    );
-    const byId = new Map();
-    for (const r of resolved) {
-      if (r.status === 'fulfilled' && r.value.match?.artistId) byId.set(r.value.videoId, r.value.match);
-    }
-    for (const t of upNext) {
-      const match = byId.get(t.videoId);
-      if (match) { t.artist = match.artist; t.author = match.artist; t.artistId = match.artistId; }
-    }
-  }
-
+// Parse renderer track dari panel 'next' jadi bentuk dasar (title, thumbnail,
+// duration, fallback artist) - dipakai bareng oleh versi lengkap (fetchTrackMeta)
+// dan versi ringan (fetchTrackMetaLight), supaya logic parsing gak kedobelan.
+function parsePrimaryTrack(track, videoId) {
   const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
   if (!title) return null;
 
@@ -237,20 +211,158 @@ export async function fetchTrackMeta(videoId) {
   );
   const duration = track?.lengthText?.simpleText || runsToText(track?.lengthText?.runs) || '';
 
+  return { title, thumbnail, duration, fallbackArtist, fallbackArtistId };
+}
+
+// Refine hasil parsePrimaryTrack pakai satu request search ke YT Music -
+// ini yang ngasih nama artis "bersih" (bukan channel "- Topic") dan
+// thumbnail resolusi tinggi yang konsisten sama section pencarian di app.
+async function refineWithSearch(videoId, base) {
   let matched = null;
   try {
-    const searchJson = await searchSongs(title);
+    const searchJson = await searchSongs(base.title);
     matched = findSongRowByVideoId(searchJson, videoId);
   } catch { }
 
   return {
     videoId,
-    title: matched?.title || title,
-    thumbnail: matched?.thumbnail || thumbnail,
-    duration: matched?.duration || duration,
-    author: matched?.artist || fallbackArtist,
-    artist: matched?.artist || fallbackArtist,
-    artistId: matched?.artistId || fallbackArtistId,
-    queue: upNext
+    title: matched?.title || base.title,
+    thumbnail: matched?.thumbnail || base.thumbnail,
+    duration: matched?.duration || base.duration,
+    author: matched?.artist || base.fallbackArtist,
+    artist: matched?.artist || base.fallbackArtist,
+    artistId: matched?.artistId || base.fallbackArtistId
   };
+}
+
+export async function fetchTrackMeta(videoId) {
+  let queue = await fetchQueuePanel(videoId, true);
+
+  if (!queue?.contents || queue.contents.length <= 1) {
+    try {
+      const plain = await fetchQueuePanel(videoId, false);
+      if (plain?.contents?.length > (queue?.contents?.length || 0)) queue = plain;
+    } catch { }
+  }
+
+  const track = pickPrimaryTrack(queue, videoId);
+  if (!track) return null;
+
+  const upNext = (queue?.contents || [])
+    .map((c) => parseQueueTrack(c.playlistPanelVideoRenderer))
+    .filter(Boolean);
+
+  const needsResolve = upNext.filter((t) => !t.artistId).slice(0, 20);
+  if (needsResolve.length) {
+    const resolved = await Promise.allSettled(
+      needsResolve.map(async (t) => {
+        const searchJson = await searchSongs(t.title);
+        return { videoId: t.videoId, match: findSongRowByVideoId(searchJson, t.videoId) };
+      })
+    );
+    const byId = new Map();
+    for (const r of resolved) {
+      if (r.status === 'fulfilled' && r.value.match?.artistId) byId.set(r.value.videoId, r.value.match);
+    }
+    for (const t of upNext) {
+      const match = byId.get(t.videoId);
+      if (match) { t.artist = match.artist; t.author = match.artist; t.artistId = match.artistId; }
+    }
+  }
+
+  const base = parsePrimaryTrack(track, videoId);
+  if (!base) return null;
+
+  const refined = await refineWithSearch(videoId, base);
+  return { ...refined, queue: upNext };
+}
+
+// --- Versi ringan, khusus buat metadata share/OG preview -------------------
+// Beda sama fetchTrackMeta: TIDAK pernah minta mix/radio ('next' dengan
+// playlistId) dan TIDAK resolve artist buat seluruh antrian up-next (itu
+// yang bikin /song/[id] lemot - bisa nembak sampai puluhan request cuma
+// buat nyiapin daftar "lagu serupa" yang sama sekali gak dipakai di preview
+// share). Total cuma 2 request berurutan: panel 'next' polos + 1 search
+// buat ngerapihin nama artis & ambil thumbnail resolusi tinggi.
+
+const _lightMetaCache = new Map();
+const LIGHT_META_TTL = 10 * 60 * 1000; // 10 menit - cukup buat nahan burst klik dari 1 link yang lagi rame dibagikan, tanpa perlu KV/D1 binding baru.
+const LIGHT_META_MAX = 200;
+
+function _lightCacheGet(id) {
+  const hit = _lightMetaCache.get(id);
+  if (!hit) return null;
+  if (Date.now() - hit.time > LIGHT_META_TTL) { _lightMetaCache.delete(id); return null; }
+  return hit.data;
+}
+
+function _lightCacheSet(id, data) {
+  if (_lightMetaCache.size >= LIGHT_META_MAX) {
+    const oldestKey = _lightMetaCache.keys().next().value;
+    if (oldestKey) _lightMetaCache.delete(oldestKey);
+  }
+  _lightMetaCache.set(id, { data, time: Date.now() });
+}
+
+async function _withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timeout')), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Fallback paling ringan kalau YT Music internal API lelet/gagal: oEmbed
+// publik YouTube, satu GET tanpa API key, biasanya nyala <1 request roundtrip.
+async function _oembedFallback(videoId) {
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`;
+    const r = await fetch(oembedUrl);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j.title) return null;
+    return {
+      videoId,
+      title: j.title,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      duration: '',
+      author: stripTopic(j.author_name || ''),
+      artist: stripTopic(j.author_name || ''),
+      artistId: ''
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchTrackMetaLight(videoId) {
+  const cached = _lightCacheGet(videoId);
+  if (cached) return cached;
+
+  let result = null;
+  try {
+    // Batasi total waktu tunggu YT Music internal API supaya crawler share
+    // preview (WhatsApp/Telegram/dll) gak nunggu lama - kalau lewat 4 detik,
+    // langsung jatuh ke oEmbed daripada bikin preview telat/gagal muncul.
+    result = await _withTimeout((async () => {
+      const queue = await fetchQueuePanel(videoId, false);
+      const track = pickPrimaryTrack(queue, videoId);
+      if (!track) return null;
+      const base = parsePrimaryTrack(track, videoId);
+      if (!base) return null;
+      return refineWithSearch(videoId, base);
+    })(), 4000);
+  } catch {
+    result = null;
+  }
+
+  if (!result) result = await _oembedFallback(videoId);
+  if (!result) return null;
+
+  _lightCacheSet(videoId, result);
+  return result;
 }

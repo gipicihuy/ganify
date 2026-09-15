@@ -1,20 +1,25 @@
 <script>
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
   export let data;
 
   $: track = data.track;
   $: shareUrl = data.shareUrl;
+  $: ogImage = data.ogImage;
   $: subtitle = track.artist || track.author || '';
-  $: ogDescription = subtitle ? `${track.title} - ${subtitle}` : track.title;
+  $: ogTitle = subtitle ? `${track.title} - ${subtitle}` : track.title;
+  $: ogDescription = `Dengarkan ${track.title} di Ganify!`;
 
-  function _playNow() {
-    goto(`/play/${track.videoId}`);
-  }
-
-  function _later() {
-    goto('/');
-  }
+  // Halaman ini pada dasarnya cuma dirender buat crawler preview (server
+  // sudah redirect browser asli ke Home + bottom sheet sebelum sampai
+  // sini). Baris ini murni jaring pengaman: kalau suatu saat ada UA
+  // browser asli yang kebaca sebagai "crawler" oleh regex di server,
+  // tetap arahkan ke flow yang sama begitu JS jalan, bukan nyangkut di
+  // halaman standalone ini.
+  onMount(() => {
+    goto(`/?share=${encodeURIComponent(track.videoId)}`, { replaceState: true });
+  });
 </script>
 
 <svelte:head>
@@ -24,38 +29,34 @@
   <meta property="og:type" content="music.song" />
   <meta property="og:url" content={shareUrl} />
   <meta property="og:site_name" content="Ganify" />
-  <meta property="og:title" content={track.title} />
+  <meta property="og:title" content={ogTitle} />
   <meta property="og:description" content={ogDescription} />
-  <meta property="og:image" content={track.thumbnail} />
+  <meta property="og:image" content={ogImage.url} />
+  {#if ogImage.width}
+    <meta property="og:image:width" content={String(ogImage.width)} />
+    <meta property="og:image:height" content={String(ogImage.height)} />
+  {/if}
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:alt" content={ogTitle} />
   <meta property="og:locale" content="id_ID" />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content={shareUrl} />
-  <meta name="twitter:title" content={track.title} />
+  <meta name="twitter:title" content={ogTitle} />
   <meta name="twitter:description" content={ogDescription} />
-  <meta name="twitter:image" content={track.thumbnail} />
+  <meta name="twitter:image" content={ogImage.url} />
 </svelte:head>
 
 <div class="share-wrap">
   <div class="share-content">
-    <p class="share-eyebrow">Seseorang membagikan lagu ini kepadamu</p>
-
     <div class="share-cover">
       <img src={track.thumbnail} alt={track.title} loading="eager" />
     </div>
-
     <p class="share-title">{track.title}</p>
     {#if subtitle}
       <p class="share-artist">{subtitle}</p>
     {/if}
-
-    <div class="share-actions">
-      <button class="share-btn share-btn-primary" on:click={_playNow}>Putar Sekarang</button>
-      <button class="share-btn share-btn-secondary" on:click={_later}>Nanti</button>
-    </div>
   </div>
-
-  <span class="share-footer">&copy; 2026 Ganify. All rights reserved.</span>
 </div>
 
 <style>
@@ -73,13 +74,6 @@
     max-width: 380px;
     width: 100%;
     text-align: center;
-  }
-
-  .share-eyebrow {
-    font-size: 0.85rem;
-    color: rgba(245, 245, 245, 0.6);
-    margin: 0 0 24px;
-    letter-spacing: 0.01em;
   }
 
   .share-cover {
@@ -115,46 +109,6 @@
   }
 
   .share-title:last-of-type {
-    margin-bottom: 32px;
-  }
-
-  .share-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 8px;
-  }
-
-  .share-btn {
-    width: 100%;
-    padding: 14px 20px;
-    border-radius: 999px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-
-  .share-btn:active {
-    transform: scale(0.97);
-  }
-
-  .share-btn-primary {
-    background: var(--gold);
-    color: #141414;
-  }
-
-  .share-btn-secondary {
-    background: transparent;
-    color: var(--cream);
-    border: 1px solid var(--border);
-  }
-
-  .share-footer {
-    margin-top: 40px;
-    font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.4);
-    letter-spacing: 0.04em;
+    margin-bottom: 0;
   }
 </style>
