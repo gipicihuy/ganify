@@ -247,6 +247,13 @@ function extractSongRows(data) {
       for (const item of items) {
         const r = item?.musicResponsiveListItemRenderer;
         if (!r) continue;
+
+        const rowMusicVideoType = r?.overlay?.musicItemThumbnailOverlayRenderer
+          ?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
+          ?.watchEndpoint?.watchEndpointMusicSupportedConfigs
+          ?.watchEndpointMusicConfig?.musicVideoType || '';
+        if (rowMusicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || rowMusicVideoType === 'MUSIC_VIDEO_TYPE_UGC') continue;
+
         const cols = r.flexColumns || [];
         const title = getRunsText(cols[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs);
         const subRuns = cols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
@@ -265,6 +272,7 @@ function extractSongRows(data) {
         // on the '•' separator itself and show up as the artist name.
         if (!artist) {
           const durationLike = /^\d+:\d{2}(:\d{2})?$/;
+          const viewOrDateLike = /ditonton|dilihat|views?\b|\d+\s*(rb|jt|jT|juta|ribu)\b|(tahun|bulan|minggu|hari|jam|menit)\s*(yang\s*)?lalu/i;
           const meaningfulRuns = subRuns.filter(run => {
             const txt = (run.text || '').trim();
             return txt && txt !== '•' && txt !== '·' && txt !== '-';
@@ -273,6 +281,7 @@ function extractSongRows(data) {
             const txt = (meaningfulRuns[i].text || '').trim();
             if (i === 0) continue; // leading type label, e.g. "Song" / "Lagu" / "Video"
             if (durationLike.test(txt)) continue;
+            if (viewOrDateLike.test(txt)) continue;
             if (album && txt === album) continue;
             artist = meaningfulRuns[i].text || '';
             break;

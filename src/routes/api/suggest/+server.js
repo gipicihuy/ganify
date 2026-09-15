@@ -61,9 +61,13 @@ function parseRecommendedItem(renderer) {
   const pageType = renderer?.navigationEndpoint?.browseEndpoint
     ?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType || '';
 
-  const overlayWatchId = renderer?.overlay?.musicItemThumbnailOverlayRenderer
-    ?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId || '';
+  const overlayEndpoint = renderer?.overlay?.musicItemThumbnailOverlayRenderer
+    ?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint;
+  const overlayWatchId = overlayEndpoint?.videoId || '';
   const videoId = renderer?.playlistItemData?.videoId || overlayWatchId || '';
+  const musicVideoType = overlayEndpoint?.watchEndpointMusicSupportedConfigs
+    ?.watchEndpointMusicConfig?.musicVideoType || '';
+  if (videoId && (musicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || musicVideoType === 'MUSIC_VIDEO_TYPE_UGC')) return null;
 
   const subRuns = cols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
   const subtitle = getRunsText(subRuns);
@@ -74,11 +78,13 @@ function parseRecommendedItem(renderer) {
       const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
       if (browseId.startsWith('UC') || browseId.startsWith('MPLA')) { artist = run.text || ''; break; }
     }
+    const viewOrDateLike = /ditonton|dilihat|views?\b|\d+\s*(rb|jt|jT|juta|ribu)\b|(tahun|bulan|minggu|hari|jam|menit)\s*(yang\s*)?lalu/i;
+    const safeSubtitle = viewOrDateLike.test(subtitle) ? '' : subtitle;
     return {
       type: 'song',
       videoId,
       title,
-      artist: stripTopic(artist || subtitle),
+      artist: stripTopic(artist || safeSubtitle),
       thumbnail: toHDThumbnail(thumbs.length ? thumbs[thumbs.length - 1].url : '', videoId)
     };
   }

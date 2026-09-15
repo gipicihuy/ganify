@@ -141,6 +141,10 @@ function findSongRowByVideoId(data, videoId) {
 
 function parseQueueTrack(track) {
   if (!track || !track.videoId) return null;
+  const musicVideoType = track?.navigationEndpoint?.watchEndpoint
+    ?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType || '';
+  if (musicVideoType === 'MUSIC_VIDEO_TYPE_OMV' || musicVideoType === 'MUSIC_VIDEO_TYPE_UGC') return null;
+
   const title = runsToText(track?.title?.runs).replace(/\s*\([^)]*\)\s*$/g, '');
   if (!title) return null;
 
@@ -151,7 +155,11 @@ function parseQueueTrack(track) {
     const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
     if ((browseId.startsWith('UC') || browseId.startsWith('MPLA')) && !artist) { artist = text; artistId = browseId; }
   }
-  if (!artist) artist = (bylineRuns[0]?.text || '');
+  if (!artist) {
+    const fallback = bylineRuns[0]?.text || '';
+    const viewOrDateLike = /ditonton|dilihat|views?\b|\d+\s*(rb|jt|jT|juta|ribu)\b|(tahun|bulan|minggu|hari|jam|menit)\s*(yang\s*)?lalu/i;
+    artist = viewOrDateLike.test(fallback) ? '' : fallback;
+  }
   artist = stripTopic(artist);
 
   const thumbnail = toHDThumbnail(
@@ -242,7 +250,11 @@ async function fetchTrackMeta(videoId) {
     const browseId = run?.navigationEndpoint?.browseEndpoint?.browseId || '';
     if ((browseId.startsWith('UC') || browseId.startsWith('MPLA')) && !fallbackArtist) { fallbackArtist = text; fallbackArtistId = browseId; }
   }
-  if (!fallbackArtist) fallbackArtist = (bylineRuns[0]?.text || '');
+  if (!fallbackArtist) {
+    const fallback = bylineRuns[0]?.text || '';
+    const viewOrDateLike = /ditonton|dilihat|views?\b|\d+\s*(rb|jt|jT|juta|ribu)\b|(tahun|bulan|minggu|hari|jam|menit)\s*(yang\s*)?lalu/i;
+    fallbackArtist = viewOrDateLike.test(fallback) ? '' : fallback;
+  }
   fallbackArtist = stripTopic(fallbackArtist);
 
   const thumbnail = toHDThumbnail(
