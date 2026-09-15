@@ -114,7 +114,7 @@ export async function GET({ url }) {
     const items = (sections[1]?.searchSuggestionsSectionRenderer?.contents || [])
       .map(c => parseRecommendedItem(c?.musicResponsiveListItemRenderer))
       .filter(Boolean)
-      .slice(0, 6);
+      .slice(0, 10);
 
     return new Response(JSON.stringify({ queries, items }), { headers: { 'Content-Type': 'application/json' } });
   } catch {
