@@ -274,9 +274,10 @@
   async function _shareTrack(track) {
     if (!track) return;
     const url = `${location.origin}/song/${track.videoId}`;
+    const label = track.author ? `${track.title} - ${track.author}` : track.title;
     const shareData = {
       title: track.title,
-      text: track.author ? `${track.title} - ${track.author}` : track.title,
+      text: `Dengarkan ${label} di Ganify!`,
       url
     };
     _closeMenuSheet();
@@ -285,7 +286,7 @@
       return;
     }
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(`${shareData.text} ${url}`);
       _showFeedback('Link lagu disalin');
     } catch {
       _showFeedback('Gagal menyalin link');
