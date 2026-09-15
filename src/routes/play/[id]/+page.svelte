@@ -6,6 +6,11 @@
   import { _getSongInfo } from '$lib/api.js';
   import { _loadQueueSnapshot } from '$lib/queueSnapshot.js';
 
+  // Cuma dipasang true kalau beneran harus nunggu network (fetch info lagu
+  // dari server) - kalau lagunya udah ada di store/snapshot, _showNP
+  // langsung ke-set dan halaman ini gak pernah kelihatan sama sekali.
+  let _showLoading = false;
+
   function _stripTopic(name) {
     return (name || '').replace(/\s*-\s*topic\s*$/i, '').trim();
   }
@@ -75,6 +80,11 @@
       }
     }
 
+    // Titik ini baru beneran nunggu network - tampilin loading biar area
+    // kosong pas klik "Putar Sekarang" (mis. dari link share) gak keliatan
+    // kayak bug.
+    _showLoading = true;
+
     const result = await _fetchTrackInfo(id);
     if (!result) { goto('/'); return; }
 
@@ -98,5 +108,80 @@
       _q8z.set(track);
     }
     _showNP.set(true);
+    _showLoading = false;
   });
 </script>
+
+{#if _showLoading}
+  <div class="play-loading">
+    <div class="play-loading-content">
+      <img src="/logo.png" alt="Ganify" class="play-loading-logo" />
+      <div class="play-loading-title">GANIFY</div>
+      <div class="play-loading-bars">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<style>
+  .play-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: #141414;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .play-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* PNG, bukan inline SVG - biar renderingnya konsisten di semua browser
+     (termasuk in-app webview WhatsApp/Telegram yang buka link share). */
+  .play-loading-logo {
+    width: 88px;
+    height: 88px;
+    margin-bottom: 22px;
+    border-radius: 20px;
+  }
+
+  .play-loading-title {
+    font-family: 'PakTzy', 'Quicksand', sans-serif;
+    font-weight: 800;
+    font-size: 1.75rem;
+    letter-spacing: -0.04em;
+    color: #FFFFFF;
+    margin-bottom: 20px;
+  }
+
+  .play-loading-bars {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    height: 30px;
+  }
+
+  .play-loading-bars span {
+    display: block;
+    width: 5px;
+    background: #FFFFFF;
+    border-radius: 3px;
+    animation: _playLoadingEq 1s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  }
+
+  .play-loading-bars span:nth-child(1) { animation-delay: 0.1s; }
+  .play-loading-bars span:nth-child(2) { animation-delay: 0.3s; }
+  .play-loading-bars span:nth-child(3) { animation-delay: 0.0s; }
+  .play-loading-bars span:nth-child(4) { animation-delay: 0.2s; }
+  .play-loading-bars span:nth-child(5) { animation-delay: 0.4s; }
+
+  @keyframes _playLoadingEq {
+    0% { height: 6px; opacity: 0.5; }
+    100% { height: 30px; opacity: 1; }
+  }
+</style>
