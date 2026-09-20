@@ -4,7 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { ensureUser, linkGoogleAccount, getUserById } from '$lib/server/db.js';
 import { GUEST_COOKIE, guestCookieOptions } from '$lib/server/guestCookie.js';
 import { getClientIp, notifyGoogleLogin, runBackground } from '$lib/server/activityMonitor.js';
-import { guardApiRequest } from '$lib/server/apiGuard.js';
+import { guardApiRequest, applyCors } from '$lib/server/apiGuard.js';
 import { getMaintenanceMode } from '$lib/server/adminDb.js';
 
 // Paths that must always stay reachable, even during maintenance mode and
@@ -48,7 +48,14 @@ const httpsRedirectHandle = async ({ event, resolve }) => {
 const apiGuardHandle = async ({ event, resolve }) => {
   const blocked = await guardApiRequest(event);
   if (blocked) return blocked;
-  return resolve(event);
+  const res = await resolve(event);
+  // Hybrid WebView: langsung ke backend harus ada CORS header biar fetch
+  // dari WebView (file:// / custom origin) tidak di-block browser/WebView.
+  // Untuk web normal same-origin, header ini di-ignore jadi aman.
+  if (event.url.pathname.startsWith('/api/')) {
+    return applyCors(event, res);
+  }
+  return res;
 };
 
 const initGuestHandle = async ({ event, resolve }) => {
