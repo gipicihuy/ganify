@@ -11,6 +11,33 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { ID3Writer } from 'browser-id3-writer';
 
+  // Hybrid WebView: kalau di Android, pakai ExoPlayer native via JS Bridge biar background + lockscreen jalan.
+  // Browser normal tetap pakai HTML Audio. Cek window.AndroidPlayer yang di-inject MainActivity.
+  function _isNative() {
+    try { return typeof window !== 'undefined' && window.AndroidPlayer && window.AndroidPlayer.isNative && window.AndroidPlayer.isNative(); } catch { return false; }
+  }
+  let _nativeTicker = null;
+  function _startNativeTick() {
+    if (_nativeTicker) clearInterval(_nativeTicker);
+    _nativeTicker = setInterval(() => {
+      try { if (_isNative() && window.AndroidPlayer.getPosition) {
+        const pos = Number(window.AndroidPlayer.getPosition() || 0);
+        const dur = Number(window.AndroidPlayer.getDuration() || _total || 0);
+        _elapsed = Math.floor(pos/1000); _total = Math.floor(dur/1000) || _total;
+        _pct = _total? (_elapsed/_total)*100 : 0; _syncSeekEls(_pct);
+      }} catch {}
+    }, 1000);
+  }
+  function _stopNativeTick() { if (_nativeTicker) clearInterval(_nativeTicker); _nativeTicker=null; }
+
+  // Expose ke Android biar ExoPlayer bisa trigger next/playing sync
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__nativeNext = () => _nxt();
+      (window as any).__nativePlaying = (p: boolean) => _playing.set(!!p);
+    }
+  });
+
   $: _rt = $page.url.pathname;
 
   const _navItems = [
@@ -587,6 +614,16 @@
 
   async function _loadAndPlay(track) {
     await tick();
+    // Native ExoPlayer via WebView bridge
+    if (_isNative()) {
+      _loading = true; _syncSeekEls(0);
+      const url = await _getStreamUrl(track.videoId, track.title, track.artist || track.author);
+      _loading = false; if (!url) return;
+      try { window.AndroidPlayer.play(url, track.title || '', track.artist || track.author || ''); } catch {}
+      _elapsed=0; _pct=0; _playing.set(true);
+      _setMediaSession(track); _stopTick(); _startNativeTick();
+      return;
+    }
     if (!_audioEl) return;
     _loading = true;
     _audioEl.pause();
@@ -611,6 +648,13 @@
   }
 
   function _togglePlay() {
+    if (_isNative()) {
+      if (_loading) return;
+      try { if ($_playing) window.AndroidPlayer.pause(); else window.AndroidPlayer.resume(); } catch {}
+      _playing.set(!$_playing);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = $_playing ? 'playing' : 'paused';
+      _updatePositionState(true); return;
+    }
     if (!_audioEl || _loading) return;
     if ($_playing) {
       _audioEl.pause();
@@ -634,6 +678,7 @@
 
   onDestroy(() => {
     if (_ticker) clearInterval(_ticker);
+    _stopNativeTick();
     if (_audioEl) { _audioEl.pause(); _audioEl.src = ''; }
     if (_feedbackTimer) clearTimeout(_feedbackTimer);
     _setBodyLock(false);
@@ -642,15 +687,15 @@
   function _nxt() {
     const a = $_p1k, b = $_x9a;
     if (!a.length) return;
-    if ($_repeat === 'one') { if (_audioEl) { _audioEl.currentTime = 0; _audioEl.play().catch(() => {}); } return; }
+    if ($_repeat === 'one') { if (_isNative()) { try{window.AndroidPlayer.seekTo(0)}catch{} return; } if (_audioEl) { _audioEl.currentTime = 0; _audioEl.play().catch(() => {}); } return; }
     const n = (b + 1) % a.length;
-    if (n === 0 && $_repeat === 'off') { _playing.set(false); if (_audioEl) _audioEl.pause(); return; }
+    if (n === 0 && $_repeat === 'off') { _playing.set(false); if (_isNative()) { try{window.AndroidPlayer.pause()}catch{} } else if (_audioEl) _audioEl.pause(); return; }
     _x9a.set(n); _q8z.set(a[n]);
   }
   function _prv() {
     const a = $_p1k, b = $_x9a;
     if (!a.length) return;
-    if (_elapsed > 3) { if (_audioEl) { _audioEl.currentTime = 0; _elapsed = 0; } return; }
+    if (_elapsed > 3) { if (_isNative()) { try{window.AndroidPlayer.seekTo(0)}catch{} } else if (_audioEl) { _audioEl.currentTime = 0; _elapsed = 0; } return; }
     const n = (b - 1 + a.length) % a.length;
     _x9a.set(n); _q8z.set(a[n]);
   }
@@ -735,7 +780,8 @@
     if (!_total || !isFinite(_total)) { _seeking = false; return; }
     const val = Number(e.target.value);
     const target = Math.round((val / 100) * _total);
-    if (_audioEl) _audioEl.currentTime = target;
+    if (_isNative()) { try { window.AndroidPlayer.seekTo(target*1000); } catch {} }
+    else if (_audioEl) _audioEl.currentTime = target;
     _elapsed = target;
     _pct = val;
     _syncSeekEls(val);
@@ -743,6 +789,7 @@
   }
 
   function _closeTrack() {
+    if (_isNative()) { try{window.AndroidPlayer.pause()}catch{} _stopNativeTick(); }
     if (_audioEl) { _audioEl.pause(); _audioEl.src = ''; }
     if (_ticker) clearInterval(_ticker);
     _elapsed = 0; _total = 0; _pct = 0;
