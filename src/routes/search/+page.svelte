@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { _g9 } from '$lib/api.js';
-  import { _q8z, _p1k, _x9a, _searchQuery, _searchResults, _showMenu, _playlists, _searchTab, _searchAlbums, _searchArtists, _searchInit } from '$lib/store.js';
+  import { _q8z, _p1k, _x9a, _searchQuery, _searchResults, _showMenu, _playlists, _searchTab, _searchAlbums, _searchArtists, _searchInit, _searchSubmitted, _searchTopResult } from '$lib/store.js';
   import { getPlaylists } from '$lib/playlist.js';
 
   let _ld = false, _t = null, _init = false;
@@ -10,7 +10,8 @@
   // saran / dibuka lewat URL ?q=...). Selama false (masih ngetik doang),
   // section hasil lengkap di bawah nggak dirender — biar nggak dobel sama
   // dropdown quick-result, sesuai perilaku Rythim (dropdown dulu, grid
-  // lengkap nyusul setelah submit).
+  // lengkap nyusul setelah submit). Sekarang di-sync ke store biar survive
+  // pindah tab (sebelumnya hilang karena reset ke false tiap mount).
   let _submitted = false;
   let _loadingId = null;
   let _qv = '';
@@ -78,7 +79,17 @@
       _init = true;
       _submitted = true;
       _searchInit.set(true);
+      _searchSubmitted.set(true);
       _runSearch(q);
+    } else if (_qv.trim() && (_ds.length || _albums.length || _artists.length)) {
+      // Balik dari tab lain (beranda -> search): restore supaya hasil tidak hilang.
+      // Store _qv/_ds/_albums/_artists sudah ke-restore via subscription, tinggal
+      // set _submitted = true dan sync URL biar konsisten.
+      _submitted = true;
+      _searchSubmitted.set(true);
+      _init = true;
+      _searchInit.set(true);
+      _syncUrl(_qv);
     }
   });
 
@@ -102,6 +113,7 @@
       _searchResults.set(_ds);
       _searchAlbums.set(_albums);
       _searchArtists.set(_artists);
+      _searchTopResult.set(_topResult);
       _p1k.set(_ds);
       _syncUrl(q);
     } catch (e) {
@@ -111,6 +123,7 @@
       _searchResults.set([]);
       _searchAlbums.set([]);
       _searchArtists.set([]);
+      _searchTopResult.set(null);
       _syncUrl(q);
     } finally {
       if (_qv === _reqVal) _ld = false;
@@ -122,8 +135,10 @@
   const unsubAl = _searchAlbums.subscribe(v => { _albums = v; });
   const unsubAr = _searchArtists.subscribe(v => { _artists = v; });
   const unsubInit = _searchInit.subscribe(v => { _init = v; });
+  const unsubSubmitted = _searchSubmitted.subscribe(v => { _submitted = v; });
+  const unsubTop = _searchTopResult.subscribe(v => { _topResult = v; });
 
-  onDestroy(() => { unsubQ(); unsubR(); unsubTab(); unsubAl(); unsubAr(); unsubInit(); });
+  onDestroy(() => { unsubQ(); unsubR(); unsubTab(); unsubAl(); unsubAr(); unsubInit(); unsubSubmitted(); unsubTop(); });
 
   async function _fetchSuggestions(q) {
     try {
@@ -146,6 +161,7 @@
     // Ngetik lagi = belum submit. Sembunyiin grid hasil lengkap sampai
     // user beneran commit (Enter / pilih saran).
     _submitted = false;
+    _searchSubmitted.set(false);
 
     if (!val.trim()) {
       _suggestions = { history: _history, api: [], apiItems: [] };
@@ -156,6 +172,7 @@
       _searchAlbums.set([]);
       _searchArtists.set([]);
       _searchInit.set(false);
+      _searchTopResult.set(null);
       if (_t) clearTimeout(_t);
       if (_sugT) clearTimeout(_sugT);
       _syncUrl('');
@@ -187,6 +204,7 @@
     _qv = q;
     _showSug = false;
     _submitted = true;
+    _searchSubmitted.set(true);
     _saveHistory(q);
     _ld = true;
     _init = true;
@@ -201,6 +219,7 @@
     if (!_qv.trim()) return;
     _showSug = false;
     _submitted = true;
+    _searchSubmitted.set(true);
     _saveHistory(_qv.trim());
   }
 
@@ -210,6 +229,8 @@
     _searchAlbums.set([]);
     _searchArtists.set([]);
     _searchInit.set(false);
+    _searchSubmitted.set(false);
+    _searchTopResult.set(null);
     _ds = []; _albums = []; _artists = []; _topResult = null;
     _init = false;
     _submitted = false;
@@ -231,6 +252,7 @@
       _showSug = false;
       if (_qv.trim() && !_submitted) {
         _submitted = true;
+        _searchSubmitted.set(true);
         _saveHistory(_qv.trim());
       }
     }, 180);
@@ -277,6 +299,7 @@
   function _selectQuick(item, idx) {
     _showSug = false;
     _submitted = true;
+    _searchSubmitted.set(true);
     _saveHistory(_qv.trim());
     _pl(item, idx);
   }
@@ -284,6 +307,7 @@
   function _selectSuggestionSong(item) {
     _showSug = false;
     _submitted = true;
+    _searchSubmitted.set(true);
     _saveHistory(_qv.trim());
     _pl({ videoId: item.videoId, title: item.title, thumbnail: item.thumbnail, author: item.artist, artist: item.artist }, 0);
   }

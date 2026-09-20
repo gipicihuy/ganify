@@ -20,6 +20,8 @@ export const _searchTab = writable('songs');
 export const _searchAlbums = writable([]);
 export const _searchArtists = writable([]);
 export const _searchInit = writable(false);
+export const _searchSubmitted = writable(false);
+export const _searchTopResult = writable(null);
 export const _likedSongs = writable([]);
 
 // Bottom sheet "Seseorang membagikan lagu ini kepadamu" - cuma diisi kalau
