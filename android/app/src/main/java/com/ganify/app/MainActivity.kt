@@ -6,6 +6,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import android.content.Intent
@@ -45,6 +47,23 @@ class MainActivity : AppCompatActivity() {
     // Kalau JS minta play sebelum MediaController selesai connect, antre dulu.
     private var pendingPlay: (() -> Unit)? = null
 
+    // MediaController hanya boleh disentuh dari main thread, sedangkan @JavascriptInterface
+    // jalan di thread lain. Jadi posisi/durasi/status di-poll di main thread lalu di-cache.
+    private val uiHandler = Handler(Looper.getMainLooper())
+    @Volatile private var cachedPosition = 0L
+    @Volatile private var cachedDuration = 0L
+    @Volatile private var cachedPlaying = false
+    private val statePoller = object : Runnable {
+        override fun run() {
+            mediaController?.let { c ->
+                cachedPosition = c.currentPosition
+                cachedDuration = if (c.duration < 0) 0L else c.duration
+                cachedPlaying = c.isPlaying
+            }
+            uiHandler.postDelayed(this, 500)
+        }
+    }
+
     inner class AndroidBridge {
         @JavascriptInterface fun play(url: String, title: String, artist: String) {
             runOnUiThread { playNative(url, title, artist, null) }
@@ -54,10 +73,13 @@ class MainActivity : AppCompatActivity() {
         }
         @JavascriptInterface fun pause() { runOnUiThread { mediaController?.pause() } }
         @JavascriptInterface fun resume() { runOnUiThread { mediaController?.play() } }
-        @JavascriptInterface fun seekTo(ms: Long) { runOnUiThread { mediaController?.seekTo(ms) } }
-        @JavascriptInterface fun getPosition(): Long = mediaController?.currentPosition ?: 0L
-        @JavascriptInterface fun getDuration(): Long = mediaController?.duration?.let { if (it < 0) 0 else it } ?: 0L
-        @JavascriptInterface fun isPlaying(): Boolean = mediaController?.isPlaying == true
+        @JavascriptInterface fun seekTo(ms: Long) {
+            cachedPosition = ms
+            runOnUiThread { mediaController?.seekTo(ms) }
+        }
+        @JavascriptInterface fun getPosition(): Long = cachedPosition
+        @JavascriptInterface fun getDuration(): Long = cachedDuration
+        @JavascriptInterface fun isPlaying(): Boolean = cachedPlaying
         @JavascriptInterface fun isNative(): Boolean = true
     }
 
@@ -89,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         ensureNotificationPermission()
         startPlaybackService()
+        uiHandler.post(statePoller)
 
         webView = findViewById(R.id.webview)
 
@@ -238,6 +261,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        uiHandler.removeCallbacks(statePoller)
         MusicService.onSkipNext = null
         MusicService.onSkipPrevious = null
         controllerFuture?.let {
