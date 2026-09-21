@@ -33,9 +33,9 @@
   // Expose ke Android biar ExoPlayer bisa trigger next/playing sync
   onMount(() => {
     if (typeof window !== 'undefined') {
-      (window as any).__nativeNext = () => _nxt();
-      (window as any).__nativePrev = () => _prv();
-      (window as any).__nativePlaying = (p: boolean) => _playing.set(!!p);
+      window.__nativeNext = () => _nxt();
+      window.__nativePrev = () => _prv();
+      window.__nativePlaying = (p) => _playing.set(!!p);
     }
   });
 
