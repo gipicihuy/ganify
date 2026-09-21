@@ -122,13 +122,7 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {}
         }, androidx.core.content.ContextCompat.getMainExecutor(this))
 
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlRequest(view: WebView, request: WebResourceRequest): Boolean {
-                // Biarkan semua navigasi internal tetap di WebView, jangan lempar ke browser
-                // Kecuali link eksternal non-ganify (mis. wikipedia di artist bio), buka via intent jika perlu.
-                return false
-            }
-        }
+        webView.webViewClient = WebViewClient()
 
         webView.webChromeClient = WebChromeClient()
 
