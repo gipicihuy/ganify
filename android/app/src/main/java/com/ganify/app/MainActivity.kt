@@ -19,27 +19,21 @@ import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.ComponentActivity
-import androidx.core.view.WindowCompat
+import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
 
-    // Frontend tetap, WebView hanya UI. Semua fetch JS langsung ke backend API:
-    // /api/search, /api/song, /api/artist, /api/album, /api/stream, /api/download, /api/lyrics
-    // Tidak ada proxy via hosting frontend.
-    // Playback sekarang via ExoPlayer native (MusicService) biar nyetel langsung di HP, background + lockscreen.
     private val frontendUrl = "https://ganify.my.id"
 
-    // JS Bridge: dipanggil dari frontend JS kalau window.AndroidPlayer tersedia
     inner class AndroidBridge {
         @JavascriptInterface fun play(url: String, title: String, artist: String) {
             runOnUiThread { playNative(url, title, artist) }
@@ -71,9 +65,7 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
-        // POST_NOTIFICATIONS untuk notifikasi playback Android 13+
         if (Build.VERSION.SDK_INT >= 33) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
@@ -83,7 +75,6 @@ class MainActivity : ComponentActivity() {
 
         webView = findViewById(R.id.webview)
 
-        // WebView siap untuk streaming & WebView hybrid
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -99,34 +90,31 @@ class MainActivity : ComponentActivity() {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
-        // Bridge ke ExoPlayer native
         webView.addJavascriptInterface(AndroidBridge(), "AndroidPlayer")
 
-        // Init MediaController untuk native playback (background + notifikasi)
-        val token = SessionToken(this, ComponentName(this, MusicService::class.java))
-        controllerFuture = MediaController.Builder(this, token).buildAsync()
-        controllerFuture?.addListener({
-            try {
-                mediaController = controllerFuture?.get()
-                mediaController?.addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(state: Int) {
-                        if (state == Player.STATE_ENDED) {
-                            webView.post { webView.evaluateJavascript("window.__nativeNext && window.__nativeNext()", null) }
+        try {
+            val token = SessionToken(this, ComponentName(this, MusicService::class.java))
+            controllerFuture = MediaController.Builder(this, token).buildAsync()
+            controllerFuture?.addListener({
+                try {
+                    mediaController = controllerFuture?.get()
+                    mediaController?.addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(state: Int) {
+                            if (state == Player.STATE_ENDED) {
+                                webView.post { webView.evaluateJavascript("window.__nativeNext && window.__nativeNext()", null) }
+                            }
                         }
-                    }
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        webView.post { webView.evaluateJavascript("window.__nativePlaying && window.__nativePlaying($isPlaying)", null) }
-                    }
-                })
-            } catch (_: Exception) {}
-        }, ContextCompat.getMainExecutor(this))
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            webView.post { webView.evaluateJavascript("window.__nativePlaying && window.__nativePlaying($isPlaying)", null) }
+                        }
+                    })
+                } catch (_: Exception) {}
+            }, ContextCompat.getMainExecutor(this))
+        } catch (_: Exception) {}
 
         webView.webViewClient = WebViewClient()
-
         webView.webChromeClient = WebChromeClient()
 
-        // Download: jangan lewat frontend page/blob, langsung serahkan ke DownloadManager
-        // Endpoint /api/download sudah set Content-Disposition: attachment dan forward Range
         webView.setDownloadListener(DownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
             try {
                 val filename = URLUtil.guessFileName(url, contentDisposition, mimetype)
@@ -134,7 +122,6 @@ class MainActivity : ComponentActivity() {
                     setMimeType(mimetype)
                     addRequestHeader("User-Agent", userAgent)
                     addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
-                    // Penting: biar backend tahu ini WebView Android (lolos apiGuard)
                     addRequestHeader("X-Requested-With", "com.ganify.app")
                     setDescription("Mengunduh $filename")
                     setTitle(filename)
@@ -145,14 +132,11 @@ class MainActivity : ComponentActivity() {
                 }
                 val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
                 dm.enqueue(request)
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) {}
         })
 
         if (savedInstanceState == null) {
-            // Header khusus WebView biar apiGuard allow (same-origin sudah allow, ini untuk file:// fallback)
-            val extraHeaders = mapOf("X-Requested-With" to "com.ganify.app")
-            webView.loadUrl(frontendUrl, extraHeaders)
+            webView.loadUrl(frontendUrl, mapOf("X-Requested-With" to "com.ganify.app"))
         }
     }
 
@@ -169,12 +153,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         controllerFuture?.let {
-            MediaController.releaseFuture(it)
+            try { MediaController.releaseFuture(it) } catch (_: Exception) {}
         }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 }
