@@ -1,4 +1,4 @@
-# Ganify 1.0.1
+# Ganify 1.0.2
 
 [![Release](https://img.shields.io/github/v/release/gipicihuy/ganify?label=Ganify&style=for-the-badge&color=FFFFFF&labelColor=141414)](https://github.com/gipicihuy/ganify/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/gipicihuy/ganify/total?style=for-the-badge&color=FFFFFF&labelColor=141414)](https://github.com/gipicihuy/ganify/releases)
