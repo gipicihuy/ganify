@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ganify</string>
+    <string name="music_player">Ganify Player</string>
+    <string name="notif_idle">Siap memutar musik</string>
+</resources>

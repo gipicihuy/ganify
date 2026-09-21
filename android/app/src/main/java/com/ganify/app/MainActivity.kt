@@ -7,6 +7,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.widget.Toast
+import android.content.Intent
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationManagerCompat
+import androidx.media3.common.PlaybackException
 import android.Manifest
 import android.content.ComponentName
 import android.content.pm.PackageManager
@@ -80,12 +86,9 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
-            }
-        }
         setContentView(R.layout.activity_main)
+        ensureNotificationPermission()
+        startPlaybackService()
 
         webView = findViewById(R.id.webview)
 
@@ -119,16 +122,23 @@ class MainActivity : AppCompatActivity() {
                                 webView.post { webView.evaluateJavascript("window.__nativeNext && window.__nativeNext()", null) }
                             }
                         }
+                        override fun onPlayerError(error: PlaybackException) {
+                            Log.e(tag, "Playback error: ${error.errorCodeName}", error)
+                            Toast.makeText(this@MainActivity, "Gagal memutar (${error.errorCodeName})", Toast.LENGTH_LONG).show()
+                            webView.post { webView.evaluateJavascript("window.__nativePlaying && window.__nativePlaying(false)", null) }
+                        }
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             webView.post { webView.evaluateJavascript("window.__nativePlaying && window.__nativePlaying($isPlaying)", null) }
                         }
                     })
                 } catch (e: Exception) {
                     Log.e(tag, "MediaController gagal connect", e)
+                    Toast.makeText(this, "Player native gagal connect: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }, ContextCompat.getMainExecutor(this))
         } catch (e: Exception) {
             Log.e(tag, "SessionToken gagal dibuat", e)
+            Toast.makeText(this, "Player native gagal dibuat: ${e.message}", Toast.LENGTH_LONG).show()
         }
 
         // Tombol next/prev di notifikasi & lockscreen -> antrean di JS
@@ -164,6 +174,55 @@ class MainActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             webView.loadUrl(frontendUrl, mapOf("X-Requested-With" to "com.ganify.app"))
+        }
+    }
+
+    // Service dinyalakan eksplisit (foreground) lalu di-bind lewat MediaController,
+    // supaya notifikasi player pasti bisa tampil (pola yang sama dengan app music biasa).
+    private fun startPlaybackService() {
+        if (MusicService.isRunning) return
+        try {
+            ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
+        } catch (e: Exception) {
+            Log.e(tag, "Gagal start MusicService", e)
+        }
+    }
+
+    private fun ensureNotificationPermission() {
+        if (NotificationManagerCompat.from(this).areNotificationsEnabled()) return
+        val prefs = getSharedPreferences("ganify_prefs", Context.MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= 33 && !prefs.getBoolean("notif_asked", false)) {
+            prefs.edit().putBoolean("notif_asked", true).apply()
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+        } else {
+            showNotificationSettingsDialog()
+        }
+    }
+
+    private fun showNotificationSettingsDialog() {
+        try {
+            AlertDialog.Builder(this)
+                .setTitle("Notifikasi Ganify mati")
+                .setMessage("Aktifkan notifikasi biar kontrol musik (play/pause, next/prev) muncul di notifikasi HP.")
+                .setPositiveButton("Buka pengaturan") { _, _ ->
+                    try {
+                        startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        )
+                    } catch (_: Exception) {}
+                }
+                .setNegativeButton("Nanti", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e(tag, "Gagal menampilkan dialog notifikasi", e)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001 && grantResults.firstOrNull() != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Izin notifikasi ditolak, kontrol musik nggak akan muncul di notifikasi", Toast.LENGTH_LONG).show()
         }
     }
 
