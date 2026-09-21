@@ -12,8 +12,8 @@ android {
         minSdk = 24
         targetSdk = 34
         // versionName & versionCode di-update otomatis via release workflow dari VERSION/package.json (single source)
-        versionCode = 7
-        versionName = "1.0.6"
+        versionCode = 8
+        versionName = "1.0.7"
     }
 
     signingConfigs {
