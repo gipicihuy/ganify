@@ -17,18 +17,17 @@ import android.webkit.DownloadListener
 import android.webkit.JavascriptInterface
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.activity.ComponentActivity
+import androidx.core.view.WindowCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private var mediaController: MediaController? = null
@@ -72,7 +71,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         // POST_NOTIFICATIONS untuk notifikasi playback Android 13+
         if (Build.VERSION.SDK_INT >= 33) {
@@ -120,7 +119,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 })
             } catch (_: Exception) {}
-        }, androidx.core.content.ContextCompat.getMainExecutor(this))
+        }, ContextCompat.getMainExecutor(this))
 
         webView.webViewClient = WebViewClient()
 
@@ -170,7 +169,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         controllerFuture?.let {
-            androidx.media3.common.util.UnstableApi::class.java // keep import
             MediaController.releaseFuture(it)
         }
     }
