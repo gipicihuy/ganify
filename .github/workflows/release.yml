@@ -58,7 +58,7 @@ jobs:
           git push origin v${{ steps.bump.outputs.version }}
 
       - name: Decode keystore
-        if: secrets.KEYSTORE != ''
+        if: ${{ secrets.KEYSTORE != '' }}
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > android/app/release.keystore
           ls -lh android/app/release.keystore
