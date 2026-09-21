@@ -2,3 +2,9 @@
 .dev.vars
 node_modules
 .svelte-kit
+# Android signing - jangan commit keystore
+android/app/release.keystore
+android/app/debug.keystore
+*.jks
+*.keystore
+android/keystore.properties

@@ -11,14 +11,30 @@ android {
         applicationId = "com.ganify.app"
         minSdk = 24
         targetSdk = 34
+        // versionName & versionCode di-update otomatis via release workflow dari VERSION/package.json (single source)
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            val ksPath = System.getenv("KEYSTORE_PATH") ?: "release.keystore"
+            val f = file(ksPath)
+            storeFile = f
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Hanya pakai release signing kalau keystore memang ada (di CI). Lokal tanpa keystore tetap bisa build.
+            val ksPath = System.getenv("KEYSTORE_PATH") ?: "release.keystore"
+            val hasKs = file(ksPath).exists() || file("release.keystore").exists()
+            if (hasKs) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

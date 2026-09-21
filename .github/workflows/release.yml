@@ -1,0 +1,99 @@
+name: Release Ganify
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Bump type (PATCH bug/typo, MINOR feat, MAJOR breaking)"
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-cleanup: on-success
+
+      - name: Bump version (MAJOR.MINOR.PATCH) + versionCode
+        id: bump
+        run: node scripts/bump-version.js --bump ${{ inputs.bump }}
+
+      - name: Commit bump, tag, push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION package.json android/app/build.gradle.kts README.md
+          git commit -m "chore(release): Ganify ${{ steps.bump.outputs.version }} [skip ci]"
+          git tag v${{ steps.bump.outputs.version }}
+          git push origin HEAD:main
+          git push origin v${{ steps.bump.outputs.version }}
+
+      - name: Decode keystore
+        if: secrets.KEYSTORE != ''
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 -d > android/app/release.keystore
+          ls -lh android/app/release.keystore
+
+      - name: Build Release APK (signed)
+        working-directory: android
+        run: gradle :app:assembleRelease --warning-mode summary --stacktrace
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Rename APK
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          OUT="Ganify-v${{ steps.bump.outputs.version }}.apk"
+          cp "$APK" "$OUT"
+          ls -lh "$OUT"
+          echo "apk=$OUT" >> $GITHUB_OUTPUT
+        id: apk
+
+      - name: Create GitHub Release (auto)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.version }}
+          name: Ganify ${{ steps.bump.outputs.version }}
+          body: |
+            ## Ganify ${{ steps.bump.outputs.version }}
+
+            **versionName:** `${{ steps.bump.outputs.version }}` · **versionCode:** `${{ steps.bump.outputs.versionCode }}`
+
+            Bump: `${{ inputs.bump }}` (`${{ steps.bump.outputs.oldVersion }}` → `${{ steps.bump.outputs.version }}`)
+
+            APK release signed (update-compatible). Download `Ganify-v${{ steps.bump.outputs.version }}.apk` di bawah.
+          files: ${{ steps.apk.outputs.apk }}
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
