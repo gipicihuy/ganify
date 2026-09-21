@@ -15,8 +15,11 @@ export async function getUserByGoogleId(db, googleId) {
 export async function ensureUser(db, id) {
   const existing = await getUserById(db, id);
   if (existing) {
+    // last_seen_at cukup akurat per ~60 detik; jangan tulis ke D1 di setiap request.
     const now = Date.now();
-    await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, id).run();
+    if (!existing.last_seen_at || now - existing.last_seen_at > 60_000) {
+      await db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(now, id).run();
+    }
     return existing;
   }
   const now = Date.now();

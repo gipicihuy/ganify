@@ -126,7 +126,8 @@ const reconcileGuestHandle = async ({ event, resolve }) => {
         event.cookies.set(GUEST_COOKIE, targetUid, guestCookieOptions());
         event.locals.uid = targetUid;
       }
-      await ensureUser(db, event.locals.uid);
+      // Simpan row user biar handle berikutnya nggak query D1 lagi.
+      event.locals.user = await ensureUser(db, event.locals.uid);
     } catch (err) {
       console.error('reconcileGuestHandle failed', err);
     }
@@ -144,7 +145,7 @@ const banAndMaintenanceHandle = async ({ event, resolve }) => {
   if (isAlwaysAllowed(path)) return resolve(event);
 
   try {
-    const user = await getUserById(db, event.locals.uid);
+    const user = event.locals.user ?? (await getUserById(db, event.locals.uid));
     const adminEmail = event.platform?.env?.ADMIN_EMAIL;
     const isAdmin = !!user && !user.is_guest && !user.is_banned && !!adminEmail && user.email === adminEmail;
 

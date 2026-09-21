@@ -2,14 +2,25 @@ const MAINTENANCE_KEY = 'maintenance_mode';
 
 // ---------------- maintenance mode (app_settings) ----------------
 
+// Dicek di setiap request (hooks) -> cache singkat per-isolate biar nggak query D1 terus.
+const MAINTENANCE_CACHE_TTL = 10_000;
+let _maintenanceCache = null;
+
 export async function getMaintenanceMode(db) {
-  const row = await db.prepare('SELECT value FROM app_settings WHERE key = ?').bind(MAINTENANCE_KEY).first();
-  if (!row) return { enabled: false, message: '' };
-  try {
-    return JSON.parse(row.value);
-  } catch {
-    return { enabled: false, message: '' };
+  if (_maintenanceCache && Date.now() - _maintenanceCache.t < MAINTENANCE_CACHE_TTL) {
+    return _maintenanceCache.v;
   }
+  const row = await db.prepare('SELECT value FROM app_settings WHERE key = ?').bind(MAINTENANCE_KEY).first();
+  let value = { enabled: false, message: '' };
+  if (row) {
+    try {
+      value = JSON.parse(row.value);
+    } catch {
+      value = { enabled: false, message: '' };
+    }
+  }
+  _maintenanceCache = { v: value, t: Date.now() };
+  return value;
 }
 
 export async function setMaintenanceMode(db, enabled, message, adminEmail) {
@@ -21,6 +32,7 @@ export async function setMaintenanceMode(db, enabled, message, adminEmail) {
     )
     .bind(MAINTENANCE_KEY, value, Date.now(), adminEmail)
     .run();
+  _maintenanceCache = null;
 }
 
 // ---------------- feature flags ----------------

@@ -1,4 +1,4 @@
-import { getClientIp } from '$lib/server/activityMonitor.js';
+import { getClientIp, runBackground } from '$lib/server/activityMonitor.js';
 
 const PUBLIC_API_PATHS = new Set(['/api/telegram/webhook']);
 
@@ -98,7 +98,8 @@ async function checkRateLimit(event) {
   try {
     const current = Number((await kv.get(key)) || 0);
     if (current >= RATE_LIMIT_MAX) return false;
-    await kv.put(key, String(current + 1), { expirationTtl: 120 });
+    // Tulis counter di background (KV put lambat) - jangan blok request.
+    runBackground(event.platform, kv.put(key, String(current + 1), { expirationTtl: 120 }));
     return true;
   } catch (err) {
     console.error('[apiGuard] rate limit check failed', err?.message || err);

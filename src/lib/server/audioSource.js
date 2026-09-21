@@ -117,24 +117,18 @@ async function savetube(videoId) {
 
   const fullUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  const results = await Promise.allSettled(
-    CDNS.map(cdn => trySingleCdn(cdn, videoId, headers, fullUrl))
-  );
-
-  const success = results.find(r => r.status === 'fulfilled');
-
-  if (success) return success.value;
-
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.error(
-        `[stream] CDN ${CDNS[i]} failed:`,
-        r.reason?.message || r.reason
-      );
-    }
-  });
-
-  return null;
+  // Ambil yang PERTAMA berhasil, jangan nunggu CDN paling lambat (allSettled
+  // bikin latensi = CDN terlambat, bisa sampai 20 detik walau ada yang sukses 1-2 detik).
+  try {
+    return await Promise.any(
+      CDNS.map(cdn => trySingleCdn(cdn, videoId, headers, fullUrl))
+    );
+  } catch (err) {
+    (err?.errors || []).forEach((e, i) => {
+      console.error(`[stream] CDN ${CDNS[i]} failed:`, e?.message || e);
+    });
+    return null;
+  }
 }
 
 async function musicPost(endpoint, body) {
@@ -388,7 +382,13 @@ async function getYtmp3DownloadUrl(videoId) {
   }
 }
 
-export async function resolveAudioSource(videoId) {
+// Cache hasil resolve per-isolate (replay / next-prev / repeat tidak perlu resolve ulang)
+const URL_CACHE_TTL = 10 * 60 * 1000;
+const URL_CACHE_MAX = 300;
+const _urlCache = new Map();
+const _inFlight = new Map();
+
+async function resolveUncached(videoId) {
   let downloadUrl = await savetube(videoId);
   let source = 'savetube';
 
@@ -410,4 +410,28 @@ export async function resolveAudioSource(videoId) {
   }
 
   return { url: downloadUrl, source };
+}
+
+export async function resolveAudioSource(videoId) {
+  const hit = _urlCache.get(videoId);
+  if (hit && Date.now() - hit.t < URL_CACHE_TTL) return hit.v;
+  if (hit) _urlCache.delete(videoId);
+
+  // Request bersamaan untuk lagu yang sama digabung jadi satu
+  if (_inFlight.has(videoId)) return _inFlight.get(videoId);
+
+  const p = resolveUncached(videoId)
+    .then((v) => {
+      if (v) {
+        _urlCache.set(videoId, { v, t: Date.now() });
+        if (_urlCache.size > URL_CACHE_MAX) {
+          _urlCache.delete(_urlCache.keys().next().value);
+        }
+      }
+      return v;
+    })
+    .finally(() => _inFlight.delete(videoId));
+
+  _inFlight.set(videoId, p);
+  return p;
 }
