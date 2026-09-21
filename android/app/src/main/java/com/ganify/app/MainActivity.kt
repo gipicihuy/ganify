@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.Manifest
 import android.content.ComponentName
 import android.content.pm.PackageManager
@@ -33,10 +34,17 @@ class MainActivity : AppCompatActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
 
     private val frontendUrl = "https://ganify.my.id"
+    private val tag = "Ganify"
+
+    // Kalau JS minta play sebelum MediaController selesai connect, antre dulu.
+    private var pendingPlay: (() -> Unit)? = null
 
     inner class AndroidBridge {
         @JavascriptInterface fun play(url: String, title: String, artist: String) {
-            runOnUiThread { playNative(url, title, artist) }
+            runOnUiThread { playNative(url, title, artist, null) }
+        }
+        @JavascriptInterface fun playWithArt(url: String, title: String, artist: String, artwork: String) {
+            runOnUiThread { playNative(url, title, artist, artwork) }
         }
         @JavascriptInterface fun pause() { runOnUiThread { mediaController?.pause() } }
         @JavascriptInterface fun resume() { runOnUiThread { mediaController?.play() } }
@@ -47,16 +55,22 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun isNative(): Boolean = true
     }
 
-    private fun playNative(url: String, title: String, artist: String) {
-        val controller = mediaController ?: return
+    private fun playNative(url: String, title: String, artist: String, artwork: String?) {
+        val controller = mediaController
+        if (controller == null) {
+            Log.w(tag, "MediaController belum siap, antre playback")
+            pendingPlay = { playNative(url, title, artist, artwork) }
+            return
+        }
+        val metadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+        if (!artwork.isNullOrBlank()) {
+            metadata.setArtworkUri(Uri.parse(artwork))
+        }
         val mediaItem = MediaItem.Builder()
             .setUri(url)
-            .setMediaMetadata(
-                androidx.media3.common.MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(artist)
-                    .build()
-            )
+            .setMediaMetadata(metadata.build())
             .build()
         controller.setMediaItem(mediaItem)
         controller.prepare()
@@ -98,6 +112,7 @@ class MainActivity : AppCompatActivity() {
             controllerFuture?.addListener({
                 try {
                     mediaController = controllerFuture?.get()
+                    pendingPlay?.let { task -> pendingPlay = null; task() }
                     mediaController?.addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(state: Int) {
                             if (state == Player.STATE_ENDED) {
@@ -108,9 +123,21 @@ class MainActivity : AppCompatActivity() {
                             webView.post { webView.evaluateJavascript("window.__nativePlaying && window.__nativePlaying($isPlaying)", null) }
                         }
                     })
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    Log.e(tag, "MediaController gagal connect", e)
+                }
             }, ContextCompat.getMainExecutor(this))
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(tag, "SessionToken gagal dibuat", e)
+        }
+
+        // Tombol next/prev di notifikasi & lockscreen -> antrean di JS
+        MusicService.onSkipNext = {
+            runOnUiThread { webView.evaluateJavascript("window.__nativeNext && window.__nativeNext()", null) }
+        }
+        MusicService.onSkipPrevious = {
+            runOnUiThread { webView.evaluateJavascript("window.__nativePrev && window.__nativePrev()", null) }
+        }
 
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
@@ -152,6 +179,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        MusicService.onSkipNext = null
+        MusicService.onSkipPrevious = null
         controllerFuture?.let {
             try { MediaController.releaseFuture(it) } catch (_: Exception) {}
         }

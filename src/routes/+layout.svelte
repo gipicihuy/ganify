@@ -34,6 +34,7 @@
   onMount(() => {
     if (typeof window !== 'undefined') {
       (window as any).__nativeNext = () => _nxt();
+      (window as any).__nativePrev = () => _prv();
       (window as any).__nativePlaying = (p: boolean) => _playing.set(!!p);
     }
   });
@@ -619,7 +620,13 @@
       _loading = true; _syncSeekEls(0);
       const url = await _getStreamUrl(track.videoId, track.title, track.artist || track.author);
       _loading = false; if (!url) return;
-      try { window.AndroidPlayer.play(url, track.title || '', track.artist || track.author || ''); } catch {}
+      try {
+        const _title = track.title || '';
+        const _artist = track.artist || track.author || '';
+        // playWithArt = kirim cover ke notifikasi native (APK baru); fallback ke play() untuk APK lama.
+        if (typeof window.AndroidPlayer.playWithArt === 'function') window.AndroidPlayer.playWithArt(url, _title, _artist, track.thumbnail || '');
+        else window.AndroidPlayer.play(url, _title, _artist);
+      } catch {}
       _elapsed=0; _pct=0; _playing.set(true);
       _setMediaSession(track); _stopTick(); _startNativeTick();
       return;
